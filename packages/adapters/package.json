@@ -1,0 +1,29 @@
+{
+  "name": "@hive/adapters",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hive 引擎适配器：契约 JSON + 通用桥接 worker（引擎输出 → kernel 行协议）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"dist/__tests__/*.test.js\"",
+    "smoke": "node examples/smoke-adapter.mjs"
+  },
+  "dependencies": {
+    "@hive/kernel": "workspace:*",
+    "@hive/shared": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

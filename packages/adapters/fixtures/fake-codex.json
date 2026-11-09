@@ -1,0 +1,16 @@
+{
+  "adapter": "fake-codex",
+  "kind": "cli",
+  "mode": "codex_jsonl",
+  "contract_version": 1,
+  "spawn": "node \"<FIXTURES>/fake-codex-engine.mjs\"",
+  "stdin_prompt": true,
+  "final_items": { "where": "$.item.item_type", "equals": "agent_message", "text": "$.item.text" },
+  "usage_parse": { "scan": "$.usage", "tokens_in": "input_tokens", "tokens_out": "output_tokens" },
+  "pricing": { "input_per_mtok": 1.75, "output_per_mtok": 14 },
+  "on_unparseable": "fail",
+  "timeout_ms": 30000,
+  "caps": {},
+  "tier": "T0",
+  "notes": "离线测试用假引擎契约；<FIXTURES> 由测试写入实际路径后使用"
+}

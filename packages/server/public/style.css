@@ -1,0 +1,110 @@
+:root {
+  --bg: #14161a;
+  --panel: #1c1f25;
+  --line: #2a2e36;
+  --text: #d7dae0;
+  --dim: #7d838e;
+  --accent: #ffb454;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 "Cascadia Code", Consolas, "Microsoft YaHei", monospace;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+h1 { font-size: 18px; margin: 0; }
+h2 { font-size: 13px; color: var(--accent); margin: 18px 0 6px; }
+.dim { color: var(--dim); }
+
+.composer { padding: 12px 20px; border-bottom: 1px solid var(--line); }
+#new-task { display: flex; gap: 8px; }
+#new-task input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+#new-task input[name="budget"] { flex: 0 0 90px; }
+#new-task button {
+  background: var(--accent);
+  border: 0;
+  color: #14161a;
+  font-weight: bold;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+main { display: flex; min-height: calc(100vh - 120px); }
+
+#tasks {
+  flex: 0 0 300px;
+  border-right: 1px solid var(--line);
+  padding: 10px;
+}
+.task {
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task:hover { background: var(--panel); }
+.task.sel { background: var(--panel); outline: 1px solid var(--accent); }
+.task .glyph { margin-right: 6px; }
+
+#panel { flex: 1; padding: 10px 20px 40px; }
+#status-line { padding: 4px 0; }
+
+#timeline .row, #receipt .row {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+  border-bottom: 1px dashed #22262d;
+}
+#timeline .seq { flex: 0 0 34px; color: var(--dim); }
+#timeline .glyph { flex: 0 0 22px; }
+#timeline .kind { flex: 0 0 190px; color: var(--accent); }
+#timeline .actor { flex: 0 0 90px; }
+#timeline .brief { flex: 1; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#outputs {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+#receipt table { border-collapse: collapse; margin-top: 4px; }
+#receipt td, #receipt th { padding: 3px 14px 3px 0; text-align: left; border-bottom: 1px dashed #22262d; }
+#receipt .total { color: var(--accent); font-weight: bold; }
+
+#artifacts details { margin: 4px 0; }
+#artifacts summary { cursor: pointer; color: var(--text); }
+#artifacts pre {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px;
+  white-space: pre-wrap;
+  max-height: 240px;
+  overflow: auto;
+}

@@ -1,0 +1,16 @@
+{
+  "adapter": "codex",
+  "kind": "cli",
+  "mode": "codex_jsonl",
+  "contract_version": 1,
+  "spawn": "codex exec --skip-git-repo-check --json -",
+  "stdin_prompt": true,
+  "final_items": { "where": "$.item.item_type", "equals": "agent_message", "text": "$.item.text" },
+  "usage_parse": { "scan": "$.usage", "tokens_in": "input_tokens", "tokens_out": "output_tokens" },
+  "pricing": { "input_per_mtok": 1.75, "output_per_mtok": 14 },
+  "on_unparseable": "fail",
+  "timeout_ms": 300000,
+  "caps": { "mcp": true, "skills": true, "sandbox": "native" },
+  "tier": "T0",
+  "notes": "codex 额度 2026-11-14 01:08 重置后跑 pnpm --filter @hive/adapters smoke 复冒烟；--json 行结构若与实际不符，只改本文件的 final_items/usage_parse 路径，桥代码不动（适配器隔离原则）"
+}

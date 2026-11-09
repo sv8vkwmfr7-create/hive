@@ -1,0 +1,19 @@
+{
+  "adapter": "claude-code",
+  "kind": "cli",
+  "mode": "claude_json",
+  "contract_version": 1,
+  "spawn": "claude -p --output-format json",
+  "stdin_prompt": true,
+  "usage_parse": {
+    "final_text": "$.result",
+    "usd": "$.total_cost_usd",
+    "tokens_in": "$.usage.input_tokens",
+    "tokens_out": "$.usage.output_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 300000,
+  "caps": { "mcp": true, "skills": true, "sandbox": "native" },
+  "tier": "T0",
+  "notes": "当前被 cc-switch 指向本地代理 127.0.0.1:3425 且模型名不被识别（见 docs/引擎清单.md）；切换供应商后无需改本文件"
+}

@@ -1,0 +1,38 @@
+import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { loadAdapter } from "./contract.js";
+import { runBridge } from "./bridge.js";
+import type { TaskPack } from "./prompt.js";
+
+/**
+ * 桥接 worker 入口：kernel spawn 本文件，argv[2] = 契约文件路径，stdin = 任务包。
+ * 由 @hive/adapters 的 resolver 生成 WorkerSpec；kernel 只见统一的行协议。
+ */
+async function main(): Promise<void> {
+  const contractPath = process.argv[2];
+  if (!contractPath) {
+    process.stderr.write("用法：node bridgeWorker.js <adapter.json>（任务包从 stdin 读）\n");
+    process.exit(2);
+  }
+  let contract;
+  try {
+    contract = loadAdapter(contractPath);
+  } catch (e) {
+    process.stderr.write(String(e instanceof Error ? e.message : e) + "\n");
+    process.exit(2);
+  }
+  let pack: TaskPack;
+  try {
+    pack = JSON.parse(readFileSync(0, "utf8")) as TaskPack;
+  } catch (e) {
+    process.stderr.write(`任务包不可读：${e instanceof Error ? e.message : e}\n`);
+    process.exit(2);
+  }
+  const result = await runBridge(pack, contract);
+  process.exit(result.exitCode);
+}
+
+// 仅作为 worker 直接运行时执行 main（被测试 import 时不触发）
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void main();
+}

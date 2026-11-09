@@ -1,0 +1,26 @@
+{
+  "name": "@hive/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hive 协议唯一真相源：事件 schema、org-chart、交接协议、账本",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"dist/__tests__/*.test.js\""
+  },
+  "dependencies": {
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

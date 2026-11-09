@@ -1,0 +1,30 @@
+{
+  "name": "@hive/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hive server：HTTP API + WebSocket 实时推内核事件流 + 最简 Web 看板",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"dist/__tests__/*.test.js\"",
+    "demo": "node examples/serve-demo.mjs"
+  },
+  "dependencies": {
+    "@hive/kernel": "workspace:*",
+    "@hive/shared": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.6.0"
+  }
+}

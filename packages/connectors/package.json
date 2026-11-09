@@ -1,0 +1,31 @@
+{
+  "name": "@hive/connectors",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hive 平台连接器：飞书事件订阅 → 任务闭环（MVP 首选；Telegram 为开发期备胎）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"dist/__tests__/*.test.js\"",
+    "demo": "node examples/feishu-demo.mjs"
+  },
+  "dependencies": {
+    "@hive/kernel": "workspace:*",
+    "@hive/shared": "workspace:*",
+    "@larksuiteoapi/node-sdk": "^1.76.0"
+  },
+  "devDependencies": {
+    "@hive/adapters": "workspace:*",
+    "@hive/server": "workspace:*",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

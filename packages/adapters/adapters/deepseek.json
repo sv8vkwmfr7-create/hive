@@ -1,0 +1,19 @@
+{
+  "adapter": "deepseek",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "base_url": "https://api.deepseek.com/v1",
+  "model": "deepseek-chat",
+  "env_key": "DEEPSEEK_API_KEY",
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "pricing": { "input_per_mtok": 0.27, "output_per_mtok": 1.1 },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": { "tools": true },
+  "tier": "T1",
+  "notes": "需要用户提供 DEEPSEEK_API_KEY（2026-11-09 盘点时未配置）；pricing 为牌价估算，实际以账单为准"
+}

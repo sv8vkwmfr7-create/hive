@@ -1,0 +1,11 @@
+{
+  "name": "hive",
+  "private": true,
+  "version": "0.0.0",
+  "description": "蜂巢 Hive —— AI 团队操作系统：看得见、管得住、越用越强",
+  "packageManager": "pnpm@11.13.1",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test"
+  }
+}

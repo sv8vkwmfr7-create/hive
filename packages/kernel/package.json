@@ -1,0 +1,27 @@
+{
+  "name": "@hive/kernel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hive 内核：任务总线、事件溯源落盘、进程管理、预算熔断",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"dist/__tests__/*.test.js\"",
+    "demo": "node examples/run-first-task.mjs"
+  },
+  "dependencies": {
+    "@hive/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

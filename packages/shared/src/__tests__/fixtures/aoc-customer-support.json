@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "customer-support",
+  "title": "Customer Support",
+  "summary": "Customer support team from Galaxy Day 2 livestream.",
+  "version": "3.0.0",
+  "tags": ["customer-support"],
+  "sources": ["https://x.com/i/broadcasts/1PKqrNyvmYwGb"],
+  "principles": [],
+  "roles": [
+    {
+      "id": "build",
+      "name": "Build",
+      "kind": "specialist",
+      "reports_to": null,
+      "summary": "Runs setup workflows and onboarding.",
+      "persona": "",
+      "in_scope": [],
+      "out_of_scope": [],
+      "required": true
+    },
+    {
+      "id": "reply",
+      "name": "Reply",
+      "kind": "specialist",
+      "reports_to": null,
+      "summary": "Answers user questions and support tickets.",
+      "persona": "",
+      "in_scope": [],
+      "out_of_scope": [],
+      "required": true
+    },
+    {
+      "id": "alert",
+      "name": "Alert",
+      "kind": "specialist",
+      "reports_to": null,
+      "summary": "Monitors system health and flags issues.",
+      "persona": "",
+      "in_scope": [],
+      "out_of_scope": [],
+      "required": true
+    },
+    {
+      "id": "tune",
+      "name": "Tune",
+      "kind": "specialist",
+      "reports_to": null,
+      "summary": "Improves support processes and workflows.",
+      "persona": "",
+      "in_scope": [],
+      "out_of_scope": [],
+      "required": true
+    }
+  ],
+  "channels": [],
+  "handoffs": [],
+  "spawn": {
+    "prefer_current_agent_as": null,
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  }
+}

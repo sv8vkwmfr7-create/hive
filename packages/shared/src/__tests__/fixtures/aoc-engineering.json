@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "engineering",
+  "title": "Engineering",
+  "summary": "Engineering team from Galaxy Day 1 livestream Meet the team slide.",
+  "version": "3.0.0",
+  "tags": ["engineering"],
+  "sources": ["https://x.com/i/broadcasts/1AxRnZbVpjaxl"],
+  "principles": [],
+  "roles": [
+    {
+      "id": "engineering-manager",
+      "name": "Engineering Manager",
+      "kind": "orchestrator",
+      "reports_to": null,
+      "summary": "Coordinates the engineering team.",
+      "persona": "",
+      "in_scope": [],
+      "out_of_scope": [],
+      "required": true
+    },
+    {
+      "id": "engineer",
+      "name": "Engineer",
+      "kind": "specialist",
+      "reports_to": "engineering-manager",
+      "summary": "Technical execution and code.",
+      "persona": "",
+      "in_scope": [],
+      "out_of_scope": [],
+      "required": true
+    }
+  ],
+  "channels": [],
+  "handoffs": [],
+  "spawn": {
+    "prefer_current_agent_as": "engineering-manager",
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  }
+}

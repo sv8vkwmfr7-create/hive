@@ -110,7 +110,7 @@ test("server：HTTP API + 静态看板 + WebSocket 实时事件流", async () =>
       artifacts: Array<{ name: string; content: string }>;
     };
     assert.equal(artifacts.length, 2, "应有素材 + 初稿两份产物");
-    assert.match(artifacts[0].content, /要点 1/);
+    assert.match(artifacts[0].content, /## 产出/);
 
     // 不存在的任务 → 404
     assert.equal((await fetch(`${base}/api/tasks/999`)).status, 404);

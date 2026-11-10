@@ -12,6 +12,8 @@ const say = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const { taskId, botId, role, instruction, artifactDir, inputArtifacts } = input;
+// 通用派单：目标来自内核下发的派单链（chart 边），任意团队图都能离线跑通
+const handoffTarget = (input.handoffs ?? [])[0]?.to;
 const USAGE = {
   chief: { tokensIn: 900, tokensOut: 210, usd: 0.05, model: "mock-flagship" },
   researcher: { tokensIn: 1200, tokensOut: 640, usd: 0.2, model: "mock-standard" },
@@ -33,48 +35,16 @@ function artifact(name, title, body) {
 async function main() {
   await sleep(60);
   if (role === "orchestrator") {
-    say({ type: "output", chunk: `拆解「${instruction}」：① 竞品调研 → ② 成稿 → ③ 独立审核` });
+    say({ type: "output", chunk: `拆解「${instruction}」：① 专业岗产出 → ② 独立审核` });
     await sleep(60);
+    if (!handoffTarget) {
+      say({ type: "usage", ...usage });
+      process.exit(0);
+    }
     say({
       type: "handoff",
-      to: "researcher",
-      note: { reason: "任务含调研子项", progress: "拆解完成，三步计划已定", ask: "产出竞品素材清单（要点 ≥ 5 条）" },
-    });
-    say({ type: "usage", ...usage });
-    process.exit(0);
-  }
-  if (botId === "researcher") {
-    say({ type: "output", chunk: "检索竞品公开资料（3 个来源）…" });
-    await sleep(60);
-    say({ type: "output", chunk: "整理素材要点 5 条。" });
-    const p = artifact("素材", "竞品素材清单", [
-      "- 要点 1：竞品定位与目标用户",
-      "- 要点 2：核心功能对比",
-      "- 要点 3：定价策略",
-      "- 要点 4：分发渠道",
-      "- 要点 5：差异化机会",
-    ].join("\n"));
-    await sleep(60);
-    say({ type: "artifact", path: p, kind: "materials" });
-    say({
-      type: "handoff",
-      to: "writer",
-      note: { reason: "素材产出完成，进入成稿", progress: "素材 v1 已产出（5 条要点）", ask: "基于素材写研究简报初稿" },
-    });
-    say({ type: "usage", ...usage });
-    process.exit(0);
-  }
-  if (botId === "writer") {
-    say({ type: "output", chunk: "基于素材起草研究简报…" });
-    await sleep(60);
-    say({ type: "output", chunk: "初稿完成。" });
-    const p = artifact("初稿", "研究简报（初稿）", "## 摘要\n\n本简报基于研究员产出的 5 条素材要点整理，覆盖定位、功能、定价、渠道与差异化机会。\n\n## 正文\n\n（初稿正文略，约 600 字）\n");
-    await sleep(60);
-    say({ type: "artifact", path: p, kind: "draft" });
-    say({
-      type: "handoff",
-      to: "reviewer",
-      note: { reason: "初稿完成，按治理规则送独立审核", progress: "初稿 v1 已产出", ask: "只出 PASS / BLOCK(带证据) / HOLD，不要替我改稿" },
+      to: handoffTarget,
+      note: { reason: "任务含专业产出子项", progress: "拆解完成，计划已定", ask: "产出本岗位交付物" },
     });
     say({ type: "usage", ...usage });
     process.exit(0);
@@ -91,20 +61,32 @@ async function main() {
     }
     say({ type: "output", chunk: "独立会话审核：只判 PASS / BLOCK / HOLD。" });
     await sleep(60);
-    const draft = (inputArtifacts ?? []).find((a) => a.path && existsSync(a.path) && a.path.includes("writer"));
+    const draft = (inputArtifacts ?? []).find((a) => a.path && existsSync(a.path));
     if (!draft) {
-      say({ type: "verdict", verdict: "BLOCK", evidence: "未找到写手初稿产物，无法审核" });
+      say({ type: "verdict", verdict: "BLOCK", evidence: "未找到可审核的上游产物，无法审核" });
       say({ type: "usage", ...usage });
       process.exit(0);
     }
     const content = readFileSync(draft.path, "utf8");
     const words = content.replace(/\s/g, "").length;
-    say({ type: "verdict", verdict: "PASS", evidence: `初稿存在且完整（${words} 字），素材要点均已覆盖` });
+    say({ type: "verdict", verdict: "PASS", evidence: `产物存在且完整（${words} 字），覆盖任务要求` });
     say({ type: "usage", ...usage });
     process.exit(0);
   }
-  process.stderr.write(`未知角色 botId=${botId} role=${role}\n`);
-  process.exit(3);
+  // 通用专业岗（任意 botId，含导入团队）：产出 artifact + 按派单链交棒
+  say({ type: "output", chunk: `处理指令：${instruction || "（无）"}` });
+  const p = artifact("产出", "任务产出", `## 产出\n\n基于指令「${instruction || "（无）"}」的专业产出（mock）。\n`);
+  await sleep(60);
+  say({ type: "artifact", path: p, kind: "output" });
+  if (handoffTarget) {
+    say({
+      type: "handoff",
+      to: handoffTarget,
+      note: { reason: "本岗位产出完成", progress: "产出 v1 已交付", ask: "继续派单链的下一棒" },
+    });
+  }
+  say({ type: "usage", ...usage });
+  process.exit(0);
 }
 
 if (!artifactDir) {

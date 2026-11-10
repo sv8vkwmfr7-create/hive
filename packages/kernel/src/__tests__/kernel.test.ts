@@ -126,10 +126,16 @@ test("bot 日额度熔断 + 内核重启后预算从事件流重建", async () =
 
 test("门禁：handoff 无 chart 边 → 内核拒绝并如实失败", async () => {
   const dataDir = tmpDataDir();
-  const brokenChart = JSON.parse(JSON.stringify(mockChart));
-  brokenChart.handoffs = brokenChart.handoffs.filter((h: { from: string }) => h.from !== "researcher");
-  const kernel = new HiveKernel({ dataDir, chart: brokenChart });
-  const taskId = kernel.createTask({ title: "越权交接", brief: "研究员试图绕过 chart", budgetUsd: 5 });
+  const rogueChart = JSON.parse(JSON.stringify(mockChart));
+  // 总管换成 rogue 引擎：该 worker 故意发出 chart 外的交接（ghost-bot）
+  rogueChart.roles.find((r: { id: string }) => r.id === "chief").engine.adapter = "rogue";
+  const kernel = new HiveKernel({
+    dataDir,
+    chart: rogueChart,
+    workers: (id) =>
+      id === "rogue" ? { workerPath: join(hiveRoot, "packages/kernel/src/__tests__/fixtures/rogue-worker.mjs") } : null,
+  });
+  const taskId = kernel.createTask({ title: "越权交接", brief: "bot 试图绕过 chart", budgetUsd: 5 });
   const res = await kernel.runTask(taskId);
 
   assert.equal(res.status, "failed");
@@ -171,7 +177,7 @@ test("共享大脑：任务 PASS 后交付摘要自动落 vault（产物全文 +
   assert.match(digest, /## 账单/, "账单段落");
   assert.match(digest, /cost_usd: 0\.5/, "总额在 frontmatter（mock 固定 $0.50）");
   assert.match(digest, /## 交付物/, "交付物段落");
-  assert.match(digest, /要点 1：竞品定位与目标用户/, "产物全文应内嵌");
+  assert.match(digest, /## 产出/, "产物全文应内嵌");
   assert.match(digest, /chief → researcher/, "流转记录");
 });
 

@@ -117,3 +117,50 @@ test("账本小票：汇总金额正确", () => {
   ]);
   assert.ok(Math.abs(receipt.totalUsd - 0.41) < 1e-9);
 });
+
+test("导入社区真 chart（agent-org-chart schema v1）：三套全部 validateChart 通过", () => {
+  const fixturesDir = join(hiveRoot, "packages/shared/src/__tests__/fixtures");
+  for (const n of ["customer-support", "engineering", "game-studio"]) {
+    const raw = JSON.parse(readFileSync(join(fixturesDir, `aoc-${n}.json`), "utf8"));
+    const { chart, warnings } = importAgentOrgChart(raw);
+    const errs = validateChart(chart);
+    assert.equal(errs.length, 0, `${n} 导入后应合法：${errs.join(";")}`);
+    assert.equal(chart.schema_version, 1);
+    assert.equal(chart.team, n);
+    const orch = chart.roles.filter((r) => r.kind === "orchestrator");
+    assert.equal(orch.length, 1, `${n} 应恰好一个总管`);
+    assert.ok(chart.handoffs.length >= chart.roles.length - 1, `${n} 应有派单边（reports_to 树合成或显式）`);
+    // 平台无关图 → 引擎默认 mock
+    for (const r of chart.roles) assert.equal(r.engine.adapter, "mock", `${n} 的 ${r.id} 默认 mock 引擎`);
+  }
+});
+
+test("导入语义：无总管图合成「总管（导入）」，reports_to 树转派单边，channels 数组转 record", () => {
+  const fixturesDir = join(hiveRoot, "packages/shared/src/__tests__/fixtures");
+  // customer-support：0 orchestrator + 4 个根 specialist
+  const cs = importAgentOrgChart(JSON.parse(readFileSync(join(fixturesDir, "aoc-customer-support.json"), "utf8")));
+  assert.equal(cs.chart.roles.filter((r) => r.kind === "orchestrator").length, 1);
+  const chief = cs.chart.roles.find((r) => r.id === "chief");
+  assert.ok(chief, "应合成 chief 总管");
+  assert.ok(cs.warnings.some((w) => w.includes("合成")), "应有合成警告");
+  for (const id of ["build", "reply", "alert", "tune"]) {
+    assert.ok(cs.chart.handoffs.some((h) => h.from === "chief" && h.to === id), `chief→${id} 派单边`);
+  }
+  // engineering：自带 orchestrator（engineering-manager），树边 manager→engineer
+  const eng = importAgentOrgChart(JSON.parse(readFileSync(join(fixturesDir, "aoc-engineering.json"), "utf8")));
+  assert.ok(!eng.warnings.some((w) => w.includes("已合成「总管")), "已有总管不应合成");
+  assert.ok(eng.chart.handoffs.some((h) => h.from === "engineering-manager" && h.to === "engineer"), "reports_to 树边");
+  // channels 数组 → record（game-studio 未必有 channels，构造一个最小样例验证）
+  const { chart: withChannels } = importAgentOrgChart({
+    schema_version: 1,
+    id: "demo",
+    roles: [
+      { id: "a", name: "A", kind: "orchestrator", reports_to: null, in_scope: [], out_of_scope: [] },
+      { id: "b", name: "B", kind: "specialist", reports_to: "a", in_scope: [], out_of_scope: [] },
+    ],
+    channels: [{ id: "ops", name: "作战频道", member_role_ids: ["a", "b"] }],
+    handoffs: [{ from_role_id: "a", to_role_id: "b", when: "有活就派" }],
+  });
+  assert.deepEqual(withChannels.channels?.ops, { name: "作战频道", members: ["a", "b"] });
+  assert.equal(withChannels.handoffs[0].from, "a", "from_role_id 归一为 from");
+});

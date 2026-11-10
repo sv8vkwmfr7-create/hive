@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "team": "customer-support",
+  "roles": [
+    {
+      "id": "build",
+      "name": "Build",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Runs setup workflows and onboarding.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "reply",
+      "name": "Reply",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Answers user questions and support tickets.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "alert",
+      "name": "Alert",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Monitors system health and flags issues.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "tune",
+      "name": "Tune",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Improves support processes and workflows.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "chief",
+      "name": "总管（导入）",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": true
+      }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief",
+      "to": "build",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "reply",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "alert",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "tune",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "build",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "reply",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "alert",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "tune",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": null,
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "customer-support",
+  "title": "Customer Support",
+  "summary": "Customer support team from Galaxy Day 2 livestream.",
+  "version": "3.0.0",
+  "tags": [
+    "customer-support"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1PKqrNyvmYwGb"
+  ],
+  "principles": []
+}

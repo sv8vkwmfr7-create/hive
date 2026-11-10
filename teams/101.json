@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "team": "101",
+  "roles": [
+    {
+      "id": "comms-drafter",
+      "name": "Comms Drafter",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Drafts written content.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "slide-maker",
+      "name": "Slide Maker",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Creates presentation slides.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "chief",
+      "name": "总管（导入）",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": true
+      }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief",
+      "to": "comms-drafter",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "slide-maker",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "comms-drafter",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "slide-maker",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": null,
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "routines": [
+    {
+      "name": "Deck change summary",
+      "schedule": "Weekdays at 9:00 AM",
+      "cron": "0 9 * * 1-5"
+    }
+  ],
+  "id": "101",
+  "title": "101",
+  "summary": "101 team from Galaxy Day 1 livestream.",
+  "version": "3.1.0",
+  "tags": [
+    "101"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1AxRnZbVpjaxl"
+  ],
+  "principles": []
+}

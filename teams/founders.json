@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "team": "founders",
+  "roles": [
+    {
+      "id": "product",
+      "name": "Product",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Product strategy and direction.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "design",
+      "name": "Design",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Visual design and UX.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "comms",
+      "name": "Comms",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Communications and messaging.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "random",
+      "name": "Random",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Ad-hoc tasks.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "chief",
+      "name": "总管（导入）",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": true
+      }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief",
+      "to": "product",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "design",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "comms",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "random",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "product",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "design",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "comms",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "random",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": null,
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "founders",
+  "title": "Founders",
+  "summary": "Founders team from Galaxy Day 1 livestream grid.",
+  "version": "3.0.0",
+  "tags": [
+    "founders"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1AxRnZbVpjaxl"
+  ],
+  "principles": []
+}

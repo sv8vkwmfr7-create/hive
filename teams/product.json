@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "team": "product",
+  "roles": [
+    {
+      "id": "chief-of-staff",
+      "name": "Chief of Staff",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": true
+      },
+      "summary": "Coordinates the product team.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "product",
+      "name": "Product",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Product strategy and direction.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "data",
+      "name": "Data / Analyst",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Data analysis and metrics.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "designer",
+      "name": "Designer",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Visual design and UX.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "recruiter",
+      "name": "Recruiter",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Recruiting and hiring.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief-of-staff",
+      "to": "product",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "data",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "designer",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "recruiter",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "product",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "data",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "designer",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "recruiter",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": "chief-of-staff",
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "product",
+  "title": "Product",
+  "summary": "Product team from Galaxy Day 1 livestream.",
+  "version": "3.0.0",
+  "tags": [
+    "product"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1AxRnZbVpjaxl"
+  ],
+  "principles": []
+}

@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "team": "marops",
+  "roles": [
+    {
+      "id": "chief-of-staff",
+      "name": "Chief of Staff",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": true
+      },
+      "summary": "Coordinates the marketing operations team.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "data-scientist",
+      "name": "Data Scientist",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Data science and analytics.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "gtm",
+      "name": "GTM",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Go-to-market strategy.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "founding-engineer",
+      "name": "Founding Engineer",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Technical founding work.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "game-designer",
+      "name": "Game Designer",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Game design and mechanics.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief-of-staff",
+      "to": "data-scientist",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "gtm",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "founding-engineer",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "game-designer",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "data-scientist",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "gtm",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "founding-engineer",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "game-designer",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": "chief-of-staff",
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "marops",
+  "title": "MarOps",
+  "summary": "Marketing operations team from Galaxy Day 3 livestream sidebar.",
+  "version": "1.0.0",
+  "tags": [
+    "marketing",
+    "operations"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1YGNrbXEeazGw"
+  ],
+  "principles": []
+}

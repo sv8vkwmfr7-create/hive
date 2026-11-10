@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "team": "sdr",
+  "roles": [
+    {
+      "id": "chief-of-staff",
+      "name": "Chief of Staff",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": true
+      },
+      "summary": "Simon Bot. Coordinates the SDR team and runs the daily prospecting routines.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "shakespeare",
+      "name": "Shakespeare",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Email",
+      "summary": "Outbound: drafts prospect emails in Gmail.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "plg-bot",
+      "name": "PLG Bot",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Salesforce",
+      "summary": "Research: account and pipeline data from Salesforce.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "amplemarket-bot",
+      "name": "Amplemarket Bot",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Enrichment",
+      "summary": "Research: enriches prospects with contact data.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "company-research-bot",
+      "name": "Company Research Bot",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Sumble",
+      "summary": "Research: company research via Sumble.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "web-search-bot",
+      "name": "Web Search Bot",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Exa",
+      "summary": "Research: web search via Exa.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "voice-of-the-customer-bot",
+      "name": "Voice of the Customer Bot",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Gong",
+      "summary": "Research: customer call insights from Gong.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "usage-bot",
+      "name": "Usage Bot",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Databricks",
+      "summary": "Research: product usage data from Databricks.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "soldier",
+      "name": "Soldier",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "chief-of-staff",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "title": "Simon's Army",
+      "summary": "Scalable clones (Simon Soldier 1..5) that fan out research and report back in Army Huddle.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief-of-staff",
+      "to": "shakespeare",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "plg-bot",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "amplemarket-bot",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "company-research-bot",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "web-search-bot",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "voice-of-the-customer-bot",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "usage-bot",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief-of-staff",
+      "to": "soldier",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "shakespeare",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "plg-bot",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "amplemarket-bot",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "company-research-bot",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "web-search-bot",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "voice-of-the-customer-bot",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "usage-bot",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "soldier",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {
+    "army-huddle": {
+      "name": "Army Huddle",
+      "members": [
+        "chief-of-staff",
+        "soldier"
+      ]
+    }
+  },
+  "spawn": {
+    "prefer_current_agent_as": "chief-of-staff",
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "routines": [
+    {
+      "name": "50 Daily Prospects",
+      "schedule": "Every day at 8:00 AM",
+      "cron": "0 8 * * *"
+    },
+    {
+      "name": "Inbox Manager",
+      "schedule": "Weekdays at 8:00 AM",
+      "cron": "0 8 * * 1-5"
+    },
+    {
+      "name": "Accounts Signal Scan",
+      "schedule": "Weekdays at 8:00 AM",
+      "cron": "0 8 * * 1-5"
+    },
+    {
+      "name": "Sequencer Daily",
+      "schedule": "Weekdays at 8:00 AM",
+      "cron": "0 8 * * 1-5"
+    },
+    {
+      "name": "Sequencer SF Triggers",
+      "schedule": "When a webhook fires",
+      "trigger": "webhook"
+    }
+  ],
+  "id": "sdr",
+  "title": "SDR",
+  "summary": "SDR team from the Galaxy Day 2 livestream sidebar: Chief of Staff (Simon Bot), Shakespeare on Outbound, six Research bots, and Simon's Army.",
+  "version": "6.0.0",
+  "tags": [
+    "sdr"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1PKqrNyvmYwGb"
+  ],
+  "principles": []
+}

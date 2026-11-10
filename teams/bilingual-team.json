@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "team": "bilingual-team",
+  "_comment": "原创模板：双语翻译队——初译 → 润色校对 → 独立审核，轻量两专业岗。",
+  "roles": [
+    {
+      "id": "chief",
+      "name": "总管",
+      "kind": "orchestrator",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/总管.md",
+      "guards": { "can_initiate_mention": true, "daily_budget_usd": 3, "max_turns": 30 }
+    },
+    {
+      "id": "translator",
+      "name": "初译员",
+      "kind": "specialist",
+      "engine": { "type": "api", "adapter": "qwen", "model": "qwen-plus" },
+      "profile": "profiles/研究员.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 2 }
+    },
+    {
+      "id": "proofreader",
+      "name": "润色校对",
+      "kind": "specialist",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/写手.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 2 }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员",
+      "kind": "reviewer",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/审核员.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 1 }
+    }
+  ],
+  "handoffs": [
+    { "from": "chief", "to": "translator", "when": "翻译任务进入初译" },
+    { "from": "translator", "to": "proofreader", "when": "初译完成" },
+    { "from": "proofreader", "to": "reviewer", "when": "润色稿完成" }
+  ]
+}

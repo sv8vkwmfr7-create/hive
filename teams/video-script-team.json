@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "team": "video-script-team",
+  "_comment": "原创模板：短视频脚本队——资料调研 → 口播脚本 → 独立审核，全 DeepSeek。",
+  "roles": [
+    {
+      "id": "chief",
+      "name": "总管",
+      "kind": "orchestrator",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/总管.md",
+      "guards": { "can_initiate_mention": true, "daily_budget_usd": 5, "max_turns": 30 }
+    },
+    {
+      "id": "researcher",
+      "name": "资料员",
+      "kind": "specialist",
+      "engine": { "type": "api", "adapter": "qwen", "model": "qwen-plus" },
+      "profile": "profiles/研究员.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 2 }
+    },
+    {
+      "id": "scriptwriter",
+      "name": "脚本师",
+      "kind": "specialist",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/写手.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 2 }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员",
+      "kind": "reviewer",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/审核员.md",
+      "guards": { "can_initiate_mention": false, "needs_approval_for": ["send_external"], "max_turns": 20, "daily_budget_usd": 1 }
+    }
+  ],
+  "handoffs": [
+    { "from": "chief", "to": "researcher", "when": "选题需要先查资料" },
+    { "from": "chief", "to": "scriptwriter", "when": "资料已齐，直接写脚本" },
+    { "from": "researcher", "to": "scriptwriter", "when": "资料产出完成" },
+    { "from": "scriptwriter", "to": "reviewer", "when": "脚本完成" }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "team": "sales-engineering",
+  "roles": [
+    {
+      "id": "technical-resource",
+      "name": "Technical Resource",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Turns technical questions into clear customer-facing content.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "customer-expert",
+      "name": "Customer Expert",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Checks customer usage and updates account plans.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "echo",
+      "name": "Echo",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Turns customer transcripts into slides and next steps.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "competitive-intel",
+      "name": "Competitive Intel",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Tracks competitor releases and keeps battlecards up to date.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "chief",
+      "name": "总管（导入）",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": true
+      }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "chief",
+      "to": "technical-resource",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "customer-expert",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "echo",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "chief",
+      "to": "competitive-intel",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "technical-resource",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "customer-expert",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "echo",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "competitive-intel",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": null,
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "sales-engineering",
+  "title": "Sales Engineering",
+  "summary": "Sales Engineering team from Galaxy Day 2 livestream.",
+  "version": "1.0.0",
+  "tags": [
+    "sales-engineering"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1PKqrNyvmYwGb"
+  ],
+  "principles": []
+}

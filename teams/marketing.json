@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "team": "marketing",
+  "roles": [
+    {
+      "id": "project-manager",
+      "name": "Project Manager",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": true
+      },
+      "summary": "Coordinates the marketing team.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "market-researcher",
+      "name": "Market Researcher",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "project-manager",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Market research and competitive analysis.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "product-marketer",
+      "name": "Product Marketer",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "project-manager",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Positioning, messaging, and product marketing.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "website-ops",
+      "name": "Website Ops",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "project-manager",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Website updates and landing pages.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "performance-marketer",
+      "name": "Performance Marketer",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "project-manager",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Traffic, ads, and performance campaigns.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "marketing-analyst",
+      "name": "Marketing Analyst",
+      "kind": "specialist",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "project-manager",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false
+      },
+      "summary": "Campaign performance analysis and reporting.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "cli",
+        "adapter": "mock"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "project-manager",
+      "to": "market-researcher",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "project-manager",
+      "to": "product-marketer",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "project-manager",
+      "to": "website-ops",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "project-manager",
+      "to": "performance-marketer",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "project-manager",
+      "to": "marketing-analyst",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "market-researcher",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "product-marketer",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "website-ops",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "performance-marketer",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    },
+    {
+      "from": "marketing-analyst",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": "project-manager",
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "marketing",
+  "title": "Marketing",
+  "summary": "Marketing team from Josh Kim session, Galaxy Day 3 livestream.",
+  "version": "4.0.0",
+  "tags": [
+    "marketing"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1YGNrbXEeazGw"
+  ],
+  "principles": []
+}

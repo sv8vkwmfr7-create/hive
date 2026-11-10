@@ -1,0 +1,24 @@
+{
+  "adapter": "siliconflow",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": {
+    "tools": true
+  },
+  "base_url": "https://api.siliconflow.cn/v1",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "env_key": "SILICONFLOW_API_KEY",
+  "pricing": {
+    "input_per_mtok": 0.14,
+    "output_per_mtok": 0.14
+  },
+  "tier": "T2",
+  "notes": "SiliconFlow 聚合（国内可达）；pricing 牌价粗估。"
+}

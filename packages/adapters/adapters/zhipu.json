@@ -1,0 +1,24 @@
+{
+  "adapter": "zhipu",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": {
+    "tools": true
+  },
+  "base_url": "https://open.bigmodel.cn/api/paas/v4",
+  "model": "glm-4-flash",
+  "env_key": "ZHIPU_API_KEY",
+  "pricing": {
+    "input_per_mtok": 0,
+    "output_per_mtok": 0
+  },
+  "tier": "T1",
+  "notes": "智谱 BigModel：glm-4-flash 免费档，账单 $0 属预期；要更强换 glm-4-plus 并改 pricing。"
+}

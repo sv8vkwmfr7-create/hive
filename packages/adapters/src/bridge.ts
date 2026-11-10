@@ -230,9 +230,9 @@ function parseCodexJsonl(contract: AdapterContract, stdout: string): EngineResul
   };
 }
 
-/** OpenAI 兼容 chat.completions（凭据经内核环境注入，桥接进程拿到即用、不落盘） */
+/** OpenAI 兼容 chat.completions（凭据经内核环境注入，桥接进程拿到即用、不落盘；本地引擎可免 key） */
 async function callOpenAiChat(contract: AdapterContract, prompt: string): Promise<EngineResult> {
-  const key = process.env[contract.env_key!] ?? "";
+  const key = contract.env_key ? (process.env[contract.env_key] ?? "") : "local";
   if (!key) {
     process.stderr.write(`缺少环境变量 ${contract.env_key}（凭据由内核注入，见 docs/引擎清单.md）\n`);
     process.exit(2);
@@ -240,9 +240,11 @@ async function callOpenAiChat(contract: AdapterContract, prompt: string): Promis
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), contract.timeout_ms);
   try {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (contract.env_key) headers.authorization = `Bearer ${key}`;
     const res = await fetch(`${contract.base_url!.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      headers,
       body: JSON.stringify({
         model: contract.model,
         messages: [{ role: "user", content: prompt }],

@@ -1,0 +1,24 @@
+{
+  "adapter": "doubao",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": {
+    "tools": true
+  },
+  "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+  "model": "doubao-pro-32k",
+  "env_key": "ARK_API_KEY",
+  "pricing": {
+    "input_per_mtok": 0.11,
+    "output_per_mtok": 0.28
+  },
+  "tier": "T1",
+  "notes": "火山方舟（豆包）；pricing 牌价粗估（¥0.8/M 入、¥2/M 出折算）。"
+}

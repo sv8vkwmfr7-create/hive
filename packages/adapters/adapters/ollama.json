@@ -1,0 +1,23 @@
+{
+  "adapter": "ollama",
+  "kind": "local",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "base_url": "http://127.0.0.1:11434/v1",
+  "model": "qwen3:8b",
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "pricing": {
+    "input_per_mtok": 0,
+    "output_per_mtok": 0
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 300000,
+  "caps": {
+    "tools": false
+  },
+  "tier": "T0",
+  "notes": "本地引擎：ollama pull qwen3:8b && ollama serve 即活；零成本零外发（数据不出机）——敏感任务用这颗脑。"
+}

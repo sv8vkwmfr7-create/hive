@@ -1,0 +1,24 @@
+{
+  "adapter": "moonshot",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": {
+    "tools": true
+  },
+  "base_url": "https://api.moonshot.cn/v1",
+  "model": "moonshot-v1-8k",
+  "env_key": "MOONSHOT_API_KEY",
+  "pricing": {
+    "input_per_mtok": 1.66,
+    "output_per_mtok": 1.66
+  },
+  "tier": "T1",
+  "notes": "Kimi/Moonshot 开放平台；pricing 牌价粗估，实际以账单为准。"
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -386,4 +386,21 @@ test("E2E：API 引擎请求审批 → 内核挂起 → approveTask 带 approval
     delete process.env.FAKE_API_KEY;
     server.close();
   }
+});
+
+test("适配器注册表 ≥10：全部契约过 schema；本地引擎免 key；主流引擎清单齐", () => {
+  const dir = realAdaptersDir;
+  const names = readdirSync(dir).filter((f: string) => f.endsWith(".json"));
+  assert.ok(names.length >= 10, `注册表应有 ≥10 个引擎契约，实际 ${names.length}：${names.join(",")}`);
+  for (const f of names) {
+    const c = loadAdapter(join(dir, f));
+    assert.ok(c.adapter.length > 0, `${f} 有 adapter 名`);
+  }
+  const ids = names.map((f) => loadAdapter(join(dir, f)).adapter);
+  for (const mainstream of ["deepseek", "qwen", "moonshot", "openrouter", "doubao", "zhipu", "siliconflow", "groq", "ollama", "kaitian", "codex", "claude-code"]) {
+    assert.ok(ids.includes(mainstream), `主流引擎 ${mainstream} 应在注册表`);
+  }
+  const ollama = loadAdapter(join(dir, "ollama.json"));
+  assert.equal(ollama.kind, "local", "ollama 是本地系");
+  assert.equal(ollama.env_key, undefined, "本地引擎免 key");
 });

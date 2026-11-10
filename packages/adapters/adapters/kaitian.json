@@ -1,0 +1,24 @@
+{
+  "adapter": "kaitian",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": {
+    "tools": true
+  },
+  "base_url": "https://aiapi.legendkaitian.com/v1",
+  "model": "deepseek-v4-flash",
+  "env_key": "KAITIAN_API_KEY",
+  "pricing": {
+    "input_per_mtok": 0.14,
+    "output_per_mtok": 0.55
+  },
+  "tier": "T1",
+  "notes": "开天内网关（product-intelligence 同款端点）。2026-11-10 实测外网 ECONNRESET——内网/VPN 下即活；key 已在 .env。"
+}

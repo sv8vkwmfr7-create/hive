@@ -1,0 +1,24 @@
+{
+  "adapter": "openrouter",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": {
+    "tools": true
+  },
+  "base_url": "https://openrouter.ai/api/v1",
+  "model": "openrouter/auto",
+  "env_key": "OPENROUTER_API_KEY",
+  "pricing": {
+    "input_per_mtok": 0.5,
+    "output_per_mtok": 1.5
+  },
+  "tier": "T1",
+  "notes": "OpenRouter 聚合网关：model 可换任意上游（claude/gpt/gemini…）；pricing 依上游模型浮动，此为占位。"
+}

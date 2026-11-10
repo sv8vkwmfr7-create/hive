@@ -29,7 +29,11 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   const result = await runBridge(pack, contract);
-  process.exit(result.exitCode);
+  // Windows：process.exit() 会与 undici keep-alive 套接字的 libuv 关闭竞态
+  // （Assertion failed: !(handle->flags & UV_HANDLE_CLOSING) → 退出码 3221226505）。
+  // 协议行已写完，改为设退出码自然排空；5s 兜底强退防悬挂。
+  process.exitCode = result.exitCode;
+  setTimeout(() => process.exit(result.exitCode), 5000);
 }
 
 // 仅作为 worker 直接运行时执行 main（被测试 import 时不触发）

@@ -1,0 +1,19 @@
+{
+  "adapter": "qwen",
+  "kind": "api",
+  "mode": "openai_chat",
+  "contract_version": 1,
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "model": "qwen-plus",
+  "env_key": "DASHSCOPE_API_KEY",
+  "usage_parse": {
+    "tokens_in": "$.usage.prompt_tokens",
+    "tokens_out": "$.usage.completion_tokens"
+  },
+  "pricing": { "input_per_mtok": 0.11, "output_per_mtok": 0.28 },
+  "on_unparseable": "fail",
+  "timeout_ms": 120000,
+  "caps": { "tools": true },
+  "tier": "T1",
+  "notes": "key 复用 docprep-ai/.env 现成 dashscope key（2026-11-10 自主点火实测 HTTP 200）；pricing 为牌价粗估（¥0.8/M 入、¥2/M 出折算），实际以账单为准"
+}

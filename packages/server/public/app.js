@@ -88,6 +88,7 @@ function renderDetail() {
     (d.paused ? ` · <b>⏸️ 已暂停</b>` : "");
 
   renderCeoControls(d);
+  renderCanvas(d);
 
   const tl = $("#timeline");
   tl.innerHTML = "";
@@ -188,6 +189,135 @@ function renderCeoControls(d) {
     }
     void selectTask(d.taskId);
   };
+}
+
+/* ---------- Mission Control 蜂房画布：RTS 式作战地图 ---------- */
+function renderCanvas(d) {
+  const el = $("#canvas");
+  if (!el || !state.chart || !d) return;
+  const roles = state.chart.roles ?? [];
+  const handoffs = state.chart.handoffs ?? [];
+  if (!roles.length) {
+    el.textContent = "—";
+    return;
+  }
+
+  // 分层：沿派单链 BFS（orchestrator 为根），层号 = 蜂房列
+  const depth = {};
+  for (const r of roles) if (r.kind === "orchestrator") depth[r.id] = 0;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const h of handoffs) {
+      if (depth[h.from] != null && (depth[h.to] == null || depth[h.to] < depth[h.from] + 1)) {
+        depth[h.to] = depth[h.from] + 1;
+        changed = true;
+      }
+    }
+  }
+  const cols = new Map();
+  for (const r of roles) {
+    const dep = depth[r.id] ?? 1;
+    if (!cols.has(dep)) cols.set(dep, []);
+    cols.get(dep).push(r);
+  }
+  const CW = 176,
+    CH = 92,
+    GX = 62,
+    GY = 16;
+  const colKeys = [...cols.keys()].sort((a, b) => a - b);
+  const rowsMax = Math.max(...[...cols.values()].map((a) => a.length));
+  const W = colKeys.length * (CW + GX) + 24;
+  const H = rowsMax * (CH + GY) + 26;
+  const pos = {};
+  colKeys.forEach((dep, ci) => {
+    const list = cols.get(dep);
+    const offset = ((rowsMax - list.length) * (CH + GY)) / 2 + 13;
+    list.forEach((r, i) => {
+      pos[r.id] = { x: 12 + ci * (CW + GX), y: offset + i * (CH + GY) };
+    });
+  });
+
+  // 每蜂状态：running / done / 出错；花费与产物按 actor 归集
+  const botState = {};
+  const spend = {};
+  const arts = {};
+  let verdict = null;
+  let lastErrorBot = null;
+  for (const t of d.timeline) {
+    if (t.kind === "bot.spawned") botState[t.payload.botId] = "running";
+    if (t.kind === "bot.exited" && t.payload.code === 0) botState[t.payload.botId] = "done";
+    if (t.kind === "cost.recorded") spend[t.payload.botId] = (spend[t.payload.botId] ?? 0) + t.payload.usd;
+    if (t.kind === "artifact.produced") arts[t.actor] = (arts[t.actor] ?? 0) + 1;
+    if (t.kind === "review.verdict") verdict = t.payload;
+    if (t.kind === "error.reported" && t.payload.byBot) lastErrorBot = t.payload.byBot;
+  }
+  const failed = d.status === "failed";
+
+  const hex = (x, y, w, h) =>
+    `${x + w * 0.22},${y} ${x + w * 0.78},${y} ${x + w},${y + h / 2} ${x + w * 0.78},${y + h} ${x + w * 0.22},${y + h} ${x},${y + h / 2}`;
+
+  let cells = "";
+  for (const r of roles) {
+    const p = pos[r.id];
+    const st = botState[r.id] ?? "idle";
+    let fill = "#20242b",
+      stroke = "#3a4150",
+      glyph = "💤";
+    if (st === "running") {
+      fill = "#39301a";
+      stroke = "#ffb454";
+      glyph = "🔄";
+    }
+    if (st === "done") {
+      fill = "#1e3326";
+      stroke = "#4caf7d";
+      glyph = "✅";
+    }
+    if (failed && lastErrorBot === r.id) {
+      fill = "#3a1e1e";
+      stroke = "#e5484d";
+      glyph = "⛔";
+    }
+    const cls = st === "running" ? ' class="cell-running"' : "";
+    const vBadge = r.kind === "reviewer" && verdict ? ` · ${verdict.verdict === "PASS" ? "✅" : "⛔"}` : "";
+    cells +=
+      `<g${cls}>` +
+      `<polygon points="${hex(p.x, p.y, CW, CH)}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
+      `<text x="${p.x + 14}" y="${p.y + 24}" fill="#ffb454" font-size="15">🐝 ${escapeHtml(r.name)}</text>` +
+      `<text x="${p.x + 14}" y="${p.y + 44}" fill="#7d838e" font-size="11">${escapeHtml(r.engine?.adapter ?? "?")}${vBadge}</text>` +
+      `<text x="${p.x + 14}" y="${p.y + 62}" fill="#d7dae0" font-size="11">${glyph} $${(spend[r.id] ?? 0).toFixed(4)}${arts[r.id] ? ` · 📄×${arts[r.id]}` : ""}</text>` +
+      `<text x="${p.x + 14}" y="${p.y + 80}" fill="#7d838e" font-size="10">${escapeHtml(r.id)}</text>` +
+      `</g>`;
+  }
+
+  // 派单链边：最近一次 handoff 高亮流动
+  const lastHandoff = [...d.timeline].reverse().find((t) => t.kind === "handoff.created");
+  let edges = "";
+  for (const h of handoffs) {
+    const a = pos[h.from];
+    const b = pos[h.to];
+    if (!a || !b) continue;
+    const hot = lastHandoff && lastHandoff.payload.from === h.from && lastHandoff.payload.to === h.to;
+    edges +=
+      `<line x1="${a.x + CW}" y1="${a.y + CH / 2}" x2="${b.x}" y2="${b.y + CH / 2}"` +
+      ` stroke="${hot ? "#ffb454" : "#3a4150"}" stroke-width="${hot ? 2.5 : 1.5}"` +
+      ` marker-end="url(#${hot ? "arrow-hot" : "arrow"})">` +
+      `<title>${escapeHtml(h.when ?? "")}</title></line>`;
+  }
+
+  const defs =
+    `<defs>` +
+    `<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7d838e"/></marker>` +
+    `<marker id="arrow-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ffb454"/></marker>` +
+    `</defs>`;
+
+  const verdictLine = verdict
+    ? ` · 审核 <b>${verdict.verdict === "PASS" ? "✅ PASS" : verdict.verdict === "BLOCK" ? "⛔ BLOCK" : "⏸ HOLD"}</b>`
+    : "";
+  el.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="蜂房作战地图">${defs}${edges}${cells}</svg>` +
+    `<div class="legend">🔄 执行中（脉冲）· ✅ 完成 · 💰 花费 · 📄 产物数 · 流动虚线 = 最近一次派单${verdictLine}</div>`;
 }
 
 function renderReceipt(receipt) {

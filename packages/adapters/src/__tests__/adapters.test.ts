@@ -300,3 +300,90 @@ test("buildPrompt：共享大脑——有库列条目促查库，无库说明自
   const noVaultField = buildPrompt(base, "deepseek");
   assert.match(noVaultField, /当前为空/, "未传 vault 视为空库");
 });
+
+test("E2E：API 引擎请求审批 → 内核挂起 → approveTask 带 approvals 重跑 → ok", async () => {
+  // 状态化假 OpenAI 兼容服务器：按角色与批准状态回不同协议 JSON
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c: string) => (body += c));
+    req.on("end", () => {
+      const prompt = (JSON.parse(body).messages?.[0]?.content as string) ?? "";
+      let reply: Record<string, unknown>;
+      if (prompt.includes("角色类型：orchestrator")) {
+        reply = { say: "派外发任务", handoff: { to: "worker", note: { reason: "外发", progress: "派单", ask: "执行外发" } } };
+      } else if (prompt.includes("角色类型：reviewer")) {
+        reply = { say: "审核通过", verdict: { verdict: "PASS", evidence: "产物完整" } };
+      } else if (prompt.includes("已获 CEO 批准")) {
+        reply = {
+          say: "已外发（批准后重跑）",
+          artifact: { filename: "外发报告.md", content: "# 外发报告\n（已获 CEO 批准后产出）" },
+          handoff: { to: "reviewer", note: { reason: "外发完成", progress: "v1", ask: "独立审核" } },
+        };
+      } else {
+        reply = { say: "高风险动作需要审批", approval: { action: "send_external", risk: "high" } };
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(reply) } }],
+          usage: { prompt_tokens: 100, completion_tokens: 20 },
+        }),
+      );
+    });
+  });
+  await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
+  const port = (server.address() as AddressInfo).port;
+
+  const dir = mkdtempSync(join(tmpdir(), "hive-approval-e2e-"));
+  writeFileSync(
+    join(dir, "fake-api.json"),
+    JSON.stringify({
+      adapter: "fake-api",
+      kind: "api",
+      mode: "openai_chat",
+      contract_version: 1,
+      base_url: `http://127.0.0.1:${port}/v1`,
+      model: "fake-chat",
+      env_key: "FAKE_API_KEY",
+      usage_parse: { tokens_in: "$.usage.prompt_tokens", tokens_out: "$.usage.completion_tokens" },
+      pricing: { input_per_mtok: 1, output_per_mtok: 2 },
+      on_unparseable: "fail",
+      timeout_ms: 30000,
+    }),
+  );
+
+  const chart = {
+    schema_version: 1,
+    team: "appr-e2e",
+    roles: [
+      { id: "chief", name: "总管", kind: "orchestrator", engine: { type: "api", adapter: "fake-api" }, profile: "profiles/p.md", guards: { can_initiate_mention: true } },
+      { id: "worker", name: "外发员", kind: "specialist", engine: { type: "api", adapter: "fake-api" }, profile: "profiles/p.md", guards: { can_initiate_mention: false, needs_approval_for: ["send_external"] } },
+      { id: "reviewer", name: "审核员", kind: "reviewer", engine: { type: "api", adapter: "fake-api" }, profile: "profiles/p.md", guards: { can_initiate_mention: false } },
+    ],
+    handoffs: [
+      { from: "chief", to: "worker", when: "派外发" },
+      { from: "worker", to: "reviewer", when: "完成送审" },
+    ],
+  } as unknown as TeamChart;
+  const resolver = createAdapterResolver({ adaptersDir: dir });
+  const kernel = new HiveKernel({ dataDir: mkdtempSync(join(tmpdir(), "hive-approval-data-")), chart, workers: resolver });
+  process.env.FAKE_API_KEY = "offline-fake";
+  try {
+    const taskId = kernel.createTask({ title: "审批桥 E2E", brief: "外发需 CEO 批准", budgetUsd: 5 });
+    const res1 = await kernel.runTask(taskId);
+    assert.equal(res1.status, "paused", `worker 请求审批应挂起：${res1.reason ?? ""}`);
+    assert.equal(kernel.pendingApproval(taskId), "send_external");
+    assert.ok(!kernel.store.replayTaskEvents(taskId).some((e) => e.kind === "review.verdict"), "审批挂起时不应有结论");
+
+    const res2 = await kernel.approveTask(taskId, "send_external", "CEO");
+    assert.equal(res2.status, "ok", `批准后应 ok：${res2.reason ?? ""}`);
+    const evs = kernel.store.replayTaskEvents(taskId);
+    assert.ok(evs.some((e) => e.kind === "approval.requested"));
+    assert.ok(evs.some((e) => e.kind === "approval.granted"));
+    assert.ok(kernel.store.replayTaskEvents(taskId).some((e) => e.kind === "artifact.produced"), "批准后重跑应产出外发 artifact");
+    assert.ok(evs.some((e) => e.kind === "review.verdict"), "重跑后仍走独立审核");
+  } finally {
+    delete process.env.FAKE_API_KEY;
+    server.close();
+  }
+});

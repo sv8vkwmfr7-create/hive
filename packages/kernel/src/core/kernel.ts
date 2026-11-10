@@ -379,6 +379,8 @@ export class HiveKernel {
         vault: this.vaultEntries(),
         // 审批门：本任务已获批准的动作（重跑的蜂据此跳过再次请求）
         approvals: this.grantedActions(taskId),
+        // 角色护栏：哪些动作需要 CEO 审批（提示词讲规矩，强制在审批门）
+        needsApprovalFor: role.guards?.needs_approval_for ?? [],
       },
       onMsg: (m: BotMsg) => {
         switch (m.type) {

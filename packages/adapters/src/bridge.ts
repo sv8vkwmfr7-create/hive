@@ -13,6 +13,7 @@ export type ProtocolMsg =
   | { type: "handoff"; to: string; note: unknown }
   | { type: "artifact"; path: string; kind?: string }
   | { type: "usage"; tokensIn?: number; tokensOut?: number; usd: number; model?: string }
+  | { type: "approval"; action: string; risk?: string }
   | { type: "verdict"; verdict: "PASS" | "BLOCK" | "HOLD"; evidence?: string; reason?: string };
 
 export class BridgeError extends Error {}
@@ -91,6 +92,14 @@ function emitProtocol(pack: TaskPack, protocol: Record<string, unknown>): void {
   const handoff = protocol.handoff as { to?: unknown; note?: unknown } | undefined;
   if (handoff && typeof handoff.to === "string" && handoff.to) {
     say({ type: "handoff", to: handoff.to, note: handoff.note });
+  }
+  const approval = protocol.approval as { action?: unknown; risk?: unknown } | undefined;
+  if (approval && typeof approval.action === "string" && approval.action) {
+    say({
+      type: "approval",
+      action: approval.action,
+      risk: approval.risk === "low" || approval.risk === "medium" ? approval.risk : "high",
+    });
   }
   const verdict = protocol.verdict as { verdict?: unknown; evidence?: unknown; reason?: unknown } | undefined;
   if (verdict && typeof verdict.verdict === "string") {

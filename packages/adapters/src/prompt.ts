@@ -14,6 +14,8 @@ export interface TaskPack {
   vault?: Array<{ name: string }>;
   /** 审批门：本任务已获 CEO 批准的动作（重跑的蜂据此跳过再次请求审批） */
   approvals?: string[];
+  /** 角色护栏：执行这些高风险动作前必须先在回复里请求审批（内核挂起等 CEO） */
+  needsApprovalFor?: string[];
 }
 
 const MAX_ARTIFACT_CHARS = 4000;
@@ -47,10 +49,10 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
     .join("\n");
 
   const replyShape = isReviewer
-    ? `{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}}`
+    ? `{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}, "approval": {"action": "<动作>", "risk": "high"}} 或省略 approval}`
     : isChief
       ? `{"say": "给用户的简短进展说明", "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}}}`
-      : `{"say": "给用户的简短进展说明", "artifact": {"filename": "名字.md", "content": "全文"}, "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}} 或无下一棒时省略 handoff}`;
+      : `{"say": "给用户的简短进展说明", "artifact": {"filename": "名字.md", "content": "全文"}, "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}} 或无下一棒时省略 handoff, "approval": {"action": "<动作>", "risk": "high"}} 或省略 approval}`;
 
   const roleRules = isReviewer
     ? [`- 你是独立审核员：只出 PASS / BLOCK（必须带证据）/ HOLD，绝不替生产者改稿，也不产出任何文件`]
@@ -81,6 +83,9 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
       : `\n团队知识库（共享大脑）当前为空：你交付的产物会自动落库，成为团队的长期资产`,
     pack.approvals?.length
       ? `\n已获 CEO 批准、可直接执行的动作（无需再请求审批）：${pack.approvals.join("、")}`
+      : "",
+    pack.needsApprovalFor?.length
+      ? `\n高风险动作审批门：以下动作执行前必须先在回复 JSON 中加 "approval": {"action": "<动作名>", "risk": "high"}——内核会挂起任务等 CEO 批准，批准后你会带着批准清单重跑：${pack.needsApprovalFor.join("、")}`
       : "",
     `\n回复格式（严格要求）：只输出一个 JSON 对象，不要任何多余文本、解释或代码块标记：`,
     replyShape,

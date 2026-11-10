@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "tsc -p .",
-    "test": "npm run build && node --test \"dist/__tests__/*.test.js\"",
+    "test": "npm run build && node --test --test-force-exit \"dist/__tests__/*.test.js\"",
     "demo": "node examples/feishu-demo.mjs"
   },
   "dependencies": {

@@ -236,6 +236,10 @@ export class HiveKernel {
         instruction: item.instruction ?? "",
         artifactDir,
         inputArtifacts: priorArtifacts,
+        // 本 bot 的合法派单链（chart 边）：提示词讲规矩的依据，真正的强制仍在门禁 3
+        handoffs: this.opts.chart.handoffs
+          .filter((h) => h.from === role.id)
+          .map((h) => ({ to: h.to, when: h.when })),
       },
       onMsg: (m: BotMsg) => {
         switch (m.type) {

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "team": "research-team-ds",
+  "_comment": "点火预案：codex 额度冻结（2026-11-14 01:08 恢复）且 claude 被 cc-switch 代理挡住期间的过渡团队——全 DeepSeek 引擎跑通聊天闭环；codex/claude 可用后切回 real-team.json。",
+  "roles": [
+    {
+      "id": "chief",
+      "name": "总管",
+      "kind": "orchestrator",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/总管.md",
+      "channels": ["feishu:oc_test"],
+      "guards": { "can_initiate_mention": true, "daily_budget_usd": 5, "max_turns": 30 }
+    },
+    {
+      "id": "researcher",
+      "name": "研究员",
+      "kind": "specialist",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/研究员.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 2 }
+    },
+    {
+      "id": "writer",
+      "name": "写手",
+      "kind": "specialist",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/写手.md",
+      "guards": { "can_initiate_mention": false, "max_turns": 20, "daily_budget_usd": 2 }
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员",
+      "kind": "reviewer",
+      "engine": { "type": "api", "adapter": "deepseek", "model": "deepseek-chat" },
+      "profile": "profiles/审核员.md",
+      "guards": { "can_initiate_mention": false, "needs_approval_for": ["send_external"], "max_turns": 20, "daily_budget_usd": 1 }
+    }
+  ],
+  "handoffs": [
+    { "from": "chief", "to": "researcher", "when": "任务含调研子项" },
+    { "from": "chief", "to": "writer", "when": "素材齐备，进入成稿" },
+    { "from": "researcher", "to": "writer", "when": "素材产出完成" },
+    { "from": "writer", "to": "reviewer", "when": "初稿完成" }
+  ]
+}

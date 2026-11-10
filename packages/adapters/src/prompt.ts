@@ -10,6 +10,8 @@ export interface TaskPack {
   inputArtifacts: Array<{ botId: string; path: string }>;
   /** 本 bot 的合法派单链（chart 边），由内核传入；真正的强制在内核门禁 */
   handoffs?: Array<{ to: string; when: string }>;
+  /** 共享大脑（团队知识库）已有条目——接活先查库，避免重复劳动 */
+  vault?: Array<{ name: string }>;
 }
 
 const MAX_ARTIFACT_CHARS = 4000;
@@ -72,6 +74,9 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
     handoffTargets.length
       ? `\n合法交接目标（只能从中选一个，没有匹配就选最接近的）：\n${handoffList}`
       : `\n（你没有合法交接目标：干完即交付，不要试图 handoff）`,
+    pack.vault?.length
+      ? `\n团队知识库（共享大脑）已有条目——开工前先查库，与已有条目重复的活不要重做，可引用其结论：\n${pack.vault.map((v) => `- ${v.name}`).join("\n")}`
+      : `\n团队知识库（共享大脑）当前为空：你交付的产物会自动落库，成为团队的长期资产`,
     `\n回复格式（严格要求）：只输出一个 JSON 对象，不要任何多余文本、解释或代码块标记：`,
     replyShape,
   ]

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import {
@@ -29,6 +29,11 @@ export interface KernelOptions {
   dataDir: string;
   chart: TeamChart;
   /**
+   * 共享大脑（Obsidian vault）：任务 PASS 后交付摘要自动落库，
+   * 后续任务的 bot 接活先查库（vault 条目清单随任务包下发）。
+   */
+  vaultDir?: string;
+  /**
    * 引擎解析器：adapterId → worker 规格。
    * 不提供或返回 null → 该引擎如实失败（不冒充可用）。默认只认 mock。
    */
@@ -40,6 +45,8 @@ export interface RunResult {
   status: "ok" | "failed" | "paused";
   reason?: string;
   receipt?: TaskReceipt;
+  /** 共享大脑落库文件路径（配置了 vaultDir 且任务 ok 时返回） */
+  vaultPath?: string;
 }
 
 interface QueueItem {
@@ -170,7 +177,8 @@ export class HiveKernel {
 
     this.emit(taskId, "kernel", "task.status_changed", { to: "ok", reason: "审核 PASS，产物核验通过" });
     const receipt = this.writeReceipt(taskId);
-    return { taskId, status: "ok", receipt };
+    const vaultPath = this.opts.vaultDir ? this.writeVaultDigest(taskId, created, receipt) : undefined;
+    return { taskId, status: "ok", receipt, vaultPath };
   }
 
   private async runOne(
@@ -240,6 +248,8 @@ export class HiveKernel {
         handoffs: this.opts.chart.handoffs
           .filter((h) => h.from === role.id)
           .map((h) => ({ to: h.to, when: h.when })),
+        // 共享大脑：接活先查库——知识库已有条目随任务包下发
+        vault: this.vaultEntries(),
       },
       onMsg: (m: BotMsg) => {
         switch (m.type) {
@@ -355,5 +365,78 @@ export class HiveKernel {
 
   isPaused(taskId: string): boolean {
     return this.pausedTasks.has(taskId);
+  }
+
+  /** 共享大脑：知识库已有条目（文件名清单，bot 接活先查库） */
+  private vaultEntries(): Array<{ name: string }> {
+    const dir = this.opts.vaultDir;
+    if (!dir || !existsSync(dir)) return [];
+    try {
+      return readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isFile() && e.name.endsWith(".md"))
+        .map((e) => ({ name: e.name }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 共享大脑落库：任务 PASS 后把交付摘要（含产物全文与账单）写成 markdown 落 vault。
+   * 这份文件就是"团队越用越强"的资产：后续任务的 bot 接活先查库，避免重复劳动。
+   */
+  writeVaultDigest(taskId: string, created: StoredEvent, receipt: TaskReceipt): string {
+    const dir = join(this.opts.vaultDir!, "蜂巢交付");
+    mkdirSync(dir, { recursive: true });
+    const p = created.payload as { title?: string; brief?: string };
+    const title = p.title ?? `任务 #${taskId}`;
+    const safe = title.replace(/[\\/:*?"<>|]/g, "_").slice(0, 40);
+    const events = this.store.replayTaskEvents(taskId);
+    const artifacts = events
+      .filter((e) => e.kind === "artifact.produced")
+      .map((e) => (e.payload as { path: string }).path);
+    const handoffs = events.filter((e) => e.kind === "handoff.created");
+    const verdict = events.find((e) => e.kind === "review.verdict");
+
+    const lines: string[] = [
+      "---",
+      `title: ${title}`,
+      `task: ${taskId}`,
+      `date: ${new Date().toISOString().slice(0, 10)}`,
+      "status: ok",
+      `cost_usd: ${receipt.totalUsd}`,
+      "tags: [蜂巢交付]",
+      "---",
+      "",
+      `# ${title}`,
+      "",
+      `> ${p.brief ?? ""}`,
+      "",
+      "## 流转",
+    ];
+    for (const h of handoffs) {
+      const n = h.payload as { from: string; to: string };
+      lines.push(`- ${h.actor} → ${n.to}`);
+    }
+    if (verdict) {
+      const v = verdict.payload as { verdict: string; evidence?: string };
+      lines.push(`- 审核：${v.verdict}${v.evidence ? `（${v.evidence}）` : ""}`);
+    }
+    lines.push("", "## 账单", "");
+    for (const c of receipt.entries) {
+      lines.push(`- ${c.botId}（${c.engine}）：${c.tokensIn ?? 0} 入 / ${c.tokensOut ?? 0} 出 tokens，$${c.usd}`);
+    }
+    lines.push("", "## 交付物", "");
+    for (const path of artifacts) {
+      lines.push(`### ${path.split(/[\\/]/).at(-1)}`, "");
+      try {
+        lines.push(readFileSync(path, "utf8").slice(0, 8000));
+      } catch {
+        lines.push(`（文件不可读：${path}）`);
+      }
+      lines.push("");
+    }
+    const file = join(dir, `task-${taskId}-${safe}.md`);
+    writeFileSync(file, lines.join("\n"), "utf8");
+    return file;
   }
 }

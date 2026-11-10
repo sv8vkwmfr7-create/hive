@@ -21,7 +21,9 @@ const dataDir = join(hiveRoot, "data", `real-loop-${new Date().toISOString().rep
 
 // 凭据经 --env-file 进入 process.env，resolver 透传给桥接进程（凭据代理：不落盘不进 prompt）
 const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters") });
-const kernel = new HiveKernel({ dataDir, chart, workers });
+// 共享大脑：设 HIVE_VAULT=<vault 目录> → 任务 PASS 后交付摘要自动落库，后续任务接活先查库
+const vaultDir = process.env.HIVE_VAULT ?? undefined;
+const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir });
 
 const taskId = kernel.createTask({
   title: "竞品简报",

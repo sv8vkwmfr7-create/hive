@@ -153,3 +153,33 @@ test("store 校验：非法 payload（BLOCK 无证据）不落库", () => {
   );
   assert.equal(kernel.store.count(), 1, "只有 task.created 落库");
 });
+
+test("共享大脑：任务 PASS 后交付摘要自动落 vault（产物全文 + 账单内嵌）", async () => {
+  const dataDir = tmpDataDir();
+  const vaultDir = mkdtempSync(join(tmpdir(), "hive-vault-"));
+  const kernel = new HiveKernel({ dataDir, chart: mockChart, vaultDir });
+  const taskId = kernel.createTask({ title: "落库验证", brief: "交付摘要自动写进知识库", budgetUsd: 5 });
+  const res = await kernel.runTask(taskId);
+
+  assert.equal(res.status, "ok");
+  assert.ok(res.vaultPath, "应返回 vault 落库路径");
+  assert.ok(res.vaultPath!.includes("蜂巢交付"), "落库目录应为 vault/蜂巢交付/");
+  assert.ok(existsSync(res.vaultPath!), "落库文件应存在");
+
+  const digest = readFileSync(res.vaultPath!, "utf8");
+  assert.match(digest, /title: 落库验证/, "frontmatter 标题");
+  assert.match(digest, /## 账单/, "账单段落");
+  assert.match(digest, /cost_usd: 0\.5/, "总额在 frontmatter（mock 固定 $0.50）");
+  assert.match(digest, /## 交付物/, "交付物段落");
+  assert.match(digest, /要点 1：竞品定位与目标用户/, "产物全文应内嵌");
+  assert.match(digest, /chief → researcher/, "流转记录");
+});
+
+test("共享大脑：未配 vaultDir 不落库，RunResult 无 vaultPath", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "无库任务", brief: "不落库", budgetUsd: 5 });
+  const res = await kernel.runTask(taskId);
+  assert.equal(res.status, "ok");
+  assert.equal(res.vaultPath, undefined);
+});

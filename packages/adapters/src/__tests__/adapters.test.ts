@@ -277,3 +277,26 @@ test("未知适配器 → 内核如实失败，不冒充可用", async () => {
   const errors = kernel.store.replayTaskEvents(taskId).filter((e) => e.kind === "error.reported");
   assert.equal(errors.length, 1);
 });
+
+test("buildPrompt：共享大脑——有库列条目促查库，无库说明自动落库", () => {
+  const base: TaskPack = {
+    taskId: "1",
+    botId: "chief",
+    role: "orchestrator",
+    instruction: "写竞品简报",
+    artifactDir: "/tmp/x",
+    inputArtifacts: [],
+    handoffs: [{ to: "researcher", when: "任务含调研子项" }],
+  };
+  const withVault = buildPrompt({ ...base, vault: [{ name: "task-7-竞品简报.md" }, { name: "task-3-定价研究.md" }] }, "deepseek");
+  assert.match(withVault, /团队知识库（共享大脑）已有条目/);
+  assert.match(withVault, /task-7-竞品简报\.md/);
+  assert.match(withVault, /不要重做/);
+
+  const emptyVault = buildPrompt({ ...base, vault: [] }, "deepseek");
+  assert.match(emptyVault, /当前为空/);
+  assert.match(emptyVault, /自动落库/);
+
+  const noVaultField = buildPrompt(base, "deepseek");
+  assert.match(noVaultField, /当前为空/, "未传 vault 视为空库");
+});

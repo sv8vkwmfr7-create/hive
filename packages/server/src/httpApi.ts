@@ -86,8 +86,8 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
       return handleTaskDetail(res, taskId);
     }
 
-    // CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工（V0.5）
-    const ctrlMatch = path.match(/^\/api\/tasks\/([^/]+)\/(pause|resume|instruct)$/);
+    // CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工 / ✅ 批准 / ⛔ 拒绝（V0.5）
+    const ctrlMatch = path.match(/^\/api\/tasks\/([^/]+)\/(pause|resume|instruct|approve|deny)$/);
     if (ctrlMatch && req.method === "POST") {
       return handleControl(req, res, ctrlMatch[1], ctrlMatch[2]);
     }
@@ -128,7 +128,13 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
     const summary = listTasks(kernel).find((t) => t.taskId === taskId);
     if (!summary) return sendJson(res, 404, { error: `任务不存在：#${taskId}` });
     const rp = replayTask(kernel.store, taskId);
-    return sendJson(res, 200, { ...summary, paused: kernel.isPaused(taskId), timeline: rp.timeline, receipt: rp.receipt });
+    return sendJson(res, 200, {
+      ...summary,
+      paused: kernel.isPaused(taskId),
+      pendingApproval: kernel.pendingApproval(taskId),
+      timeline: rp.timeline,
+      receipt: rp.receipt,
+    });
   }
 
   /** CEO 门端点：pause / resume / instruct（错误如实 400，不吞异常） */
@@ -140,7 +146,13 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
     });
     req.on("end", () => {
       try {
-        const input = JSON.parse(body || "{}") as { by?: string; botId?: string; instruction?: string };
+        const input = JSON.parse(body || "{}") as {
+          by?: string;
+          botId?: string;
+          instruction?: string;
+          action?: string;
+          reason?: string;
+        };
         const by = input.by ?? "human";
         if (action === "pause") {
           kernel.pauseTask(taskId, by);
@@ -158,6 +170,22 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
           }
           kernel.instructTask(taskId, input.botId, input.instruction, by);
           return sendJson(res, 200, { ok: true, taskId, action: "instructed", botId: input.botId });
+        }
+        if (action === "approve") {
+          if (!input.action) return sendJson(res, 400, { error: "action 必填" });
+          void Promise.resolve(kernel.approveTask(taskId, input.action, by))
+            .then((result) => {
+              sendJson(res, 200, { ok: true, taskId, action: "approved", status: result.status, reason: result.reason });
+            })
+            .catch((err: unknown) => {
+              sendJson(res, 400, { error: errText(err) });
+            });
+          return;
+        }
+        if (action === "deny") {
+          if (!input.action) return sendJson(res, 400, { error: "action 必填" });
+          kernel.denyTask(taskId, input.action, by, input.reason);
+          return sendJson(res, 200, { ok: true, taskId, action: "denied" });
         }
         return sendJson(res, 400, { error: `未知操作：${action}` });
       } catch (err) {

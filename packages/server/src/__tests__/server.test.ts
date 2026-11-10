@@ -190,3 +190,32 @@ test("CEO 门 API：pause/resume/instruct 端点，错误如实 400", async () =
     await server.close();
   }
 });
+
+test("审批门 API：detail 暴露 pendingApproval，approve 放行，错误如实 400", async () => {
+  const kernel = new HiveKernel({ dataDir: mkdtempSync(join(tmpdir(), "hive-server-appr-")), chart });
+  const server = await createHiveServer({ kernel });
+  try {
+    process.env.HIVE_MOCK_APPROVAL = "send_external";
+    const taskId = kernel.createTask({ title: "审批 API", brief: "端点验收", budgetUsd: 5 });
+    const base = `http://127.0.0.1:${server.port}`;
+    const post = (p: string, body: unknown) => fetch(`${base}${p}`, { method: "POST", body: JSON.stringify(body) });
+
+    const runRes = await kernel.runTask(taskId); // reviewer 请求审批 → 挂起
+    assert.equal(runRes.status, "paused");
+
+    const detail = (await (await fetch(`${base}/api/tasks/${taskId}`)).json()) as { pendingApproval: string | null };
+    assert.equal(detail.pendingApproval, "send_external");
+
+    const bad = await post(`/api/tasks/${taskId}/approve`, { action: "other_thing" });
+    assert.equal(bad.status, 400);
+
+    const ok = await post(`/api/tasks/${taskId}/approve`, { action: "send_external", by: "CEO" });
+    assert.equal(ok.status, 200);
+    const okBody = (await ok.json()) as { status: string };
+    assert.equal(okBody.status, "ok");
+    assert.equal(kernel.pendingApproval(taskId), null);
+  } finally {
+    delete process.env.HIVE_MOCK_APPROVAL;
+    await server.close();
+  }
+});

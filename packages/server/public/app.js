@@ -37,6 +37,9 @@ function briefOf(t) {
     case "run.paused": return p.reason ?? "";
     case "run.resumed": return "▶️ 人工恢复";
     case "run.taken_over": return `✋ 接管 by ${p.by}`;
+    case "approval.requested": return `🗂 请求审批：${p.action}（${p.risk}）`;
+    case "approval.granted": return `✅ 批准：${p.action} by ${p.by}`;
+    case "approval.denied": return `⛔ 拒绝：${p.action} by ${p.by}`;
     case "bot.exited": return `${p.botId} 退出（code=${p.code})`;
     case "error.reported": return p.message;
     default: return "";
@@ -114,12 +117,43 @@ function renderCeoControls(d) {
     .map((r) => `<option value="${escapeHtml(r.id)}">🐝 ${escapeHtml(r.name || r.id)}</option>`)
     .join("");
   ctrl.innerHTML =
+    (d.pendingApproval
+      ? `<div style="margin-bottom:4px">🗂 <b>待批动作：${escapeHtml(d.pendingApproval)}</b>` +
+        ` <button id="btn-approve">✅ 批准</button> <button id="btn-deny">⛔ 拒绝</button></div>`
+      : "") +
     `<button id="btn-pause" title="停在下一次蜂房边界">⏸️ 暂停</button>` +
     `<button id="btn-resume">▶️ 恢复</button>` +
     ` <select id="takeover-bot">${roles}</select>` +
     `<input id="takeover-text" placeholder="✋ 接管：给选中的蜂房派指令" size="32"/>` +
     `<button id="btn-takeover">✋ 接管</button>` +
     ` <span id="ctrl-msg" class="dim"></span>`;
+  if (d.pendingApproval) {
+    $("#btn-approve").onclick = async () => {
+      try {
+        const r = await api(`/api/tasks/${d.taskId}/approve`, {
+          method: "POST",
+          body: JSON.stringify({ by: "board", action: d.pendingApproval }),
+        });
+        $("#ctrl-msg").textContent = `已批准 → ${r.status ?? ""}`;
+      } catch (e) {
+        $("#ctrl-msg").textContent = String(e.message ?? e);
+      }
+      void selectTask(d.taskId);
+    };
+    $("#btn-deny").onclick = async () => {
+      const reason = window.prompt("拒绝理由（可选）：") ?? undefined;
+      try {
+        await api(`/api/tasks/${d.taskId}/deny`, {
+          method: "POST",
+          body: JSON.stringify({ by: "board", action: d.pendingApproval, reason }),
+        });
+        $("#ctrl-msg").textContent = "已拒绝，任务如实标失败";
+      } catch (e) {
+        $("#ctrl-msg").textContent = String(e.message ?? e);
+      }
+      void selectTask(d.taskId);
+    };
+  }
   $("#btn-pause").onclick = async () => {
     try {
       await api(`/api/tasks/${d.taskId}/pause`, { method: "POST", body: JSON.stringify({ by: "board" }) });

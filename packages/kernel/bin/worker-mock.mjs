@@ -80,6 +80,15 @@ async function main() {
     process.exit(0);
   }
   if (botId === "reviewer") {
+    // 审批门演示：设 HIVE_MOCK_APPROVAL=<动作名> 时，reviewer 首跑先请求审批（内核挂起等 CEO）；
+    // 批准后重跑时任务包 approvals 已含该动作 → 直接出结论。
+    const needApproval = process.env.HIVE_MOCK_APPROVAL;
+    if (needApproval && !(input.approvals ?? []).includes(needApproval)) {
+      say({ type: "output", chunk: `需要审批：${needApproval}（高风险动作，内核挂起等待 CEO）` });
+      say({ type: "approval", action: needApproval, risk: "high" });
+      say({ type: "usage", ...usage });
+      process.exit(0);
+    }
     say({ type: "output", chunk: "独立会话审核：只判 PASS / BLOCK / HOLD。" });
     await sleep(60);
     const draft = (inputArtifacts ?? []).find((a) => a.path && existsSync(a.path) && a.path.includes("writer"));

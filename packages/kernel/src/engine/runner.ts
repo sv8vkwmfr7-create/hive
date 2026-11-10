@@ -6,6 +6,7 @@ export type BotMsg =
   | { type: "handoff"; to: string; note: unknown }
   | { type: "artifact"; path: string; kind?: string }
   | { type: "usage"; tokensIn?: number; tokensOut?: number; usd: number; model?: string }
+  | { type: "approval"; action: string; risk?: string }
   | { type: "verdict"; verdict: "PASS" | "BLOCK" | "HOLD"; evidence?: string; reason?: string };
 
 export interface RunBotOptions {

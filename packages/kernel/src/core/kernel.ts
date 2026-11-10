@@ -78,6 +78,8 @@ export class HiveKernel {
   private manualPaused = new Set<string>();
   /** 暂停时未跑完的执行队列：resumeTask 从这里继续 */
   private pausedQueues = new Map<string, QueueItem[]>();
+  /** 审批门：taskId → 待批动作 */
+  private pendingApprovals = new Map<string, string>();
   private listeners = new Set<(e: StoredEvent) => void>();
 
   constructor(private opts: KernelOptions) {
@@ -172,6 +174,41 @@ export class HiveKernel {
     this.emit(taskId, "human", "task.assigned", { from: `human:${by}`, to: botId, instruction });
   }
 
+  /** 审批门：当前任务的待批动作（无则 null） */
+  pendingApproval(taskId: string): string | null {
+    return this.pendingApprovals.get(taskId) ?? null;
+  }
+
+  /** CEO ✅：批准待批动作 → 该蜂带 approvals 重跑直至交付 */
+  async approveTask(taskId: string, action: string, by = "human"): Promise<RunResult> {
+    const pending = this.pendingApprovals.get(taskId);
+    if (!pending) throw new Error(`任务 #${taskId} 没有待批动作`);
+    if (pending !== action) throw new Error(`待批动作是 ${pending}，不是 ${action}`);
+    this.emit(taskId, "human", "approval.granted", { action, by });
+    this.pendingApprovals.delete(taskId);
+    return this.resumeTask(taskId, by);
+  }
+
+  /** CEO ⛔：拒绝待批动作 → 任务如实失败，不静默放行 */
+  denyTask(taskId: string, action: string, by = "human", reason?: string): void {
+    const pending = this.pendingApprovals.get(taskId);
+    if (!pending) throw new Error(`任务 #${taskId} 没有待批动作`);
+    if (pending !== action) throw new Error(`待批动作是 ${pending}，不是 ${action}`);
+    this.emit(taskId, "human", "approval.denied", { action, by, reason });
+    this.pendingApprovals.delete(taskId);
+    this.pausedQueues.delete(taskId);
+    const msg = `审批被拒：${action}${reason ? `——${reason}` : ""}`;
+    this.emit(taskId, "kernel", "task.status_changed", { to: "failed", reason: msg });
+  }
+
+  /** 本任务已获批准的动作清单（随任务包下发，重跑的蜂据此跳过再次请求） */
+  private grantedActions(taskId: string): string[] {
+    return this.store
+      .replayTaskEvents(taskId)
+      .filter((e) => e.kind === "approval.granted")
+      .map((e) => (e.payload as { action: string }).action);
+  }
+
   /** 执行队列主循环（runTask 与 resumeTask 共用）：每只蜂之间检查人工暂停门 */
   private async drain(taskId: string, queue: QueueItem[], created: StoredEvent): Promise<RunResult> {
     const budgetUsd = (created.payload as { budgetUsd?: number }).budgetUsd;
@@ -206,9 +243,29 @@ export class HiveKernel {
         };
       }
       const item = queue.shift()!;
-      const outcome = await this.runOne(taskId, item, budgetUsd, onVerdict, (next) => queue.push(next), (f) => {
-        lastFailure = f;
-      });
+      let pendingApproval: { action: string; risk: string } | null = null;
+      const outcome = await this.runOne(
+        taskId,
+        item,
+        budgetUsd,
+        onVerdict,
+        (next) => queue.push(next),
+        (f) => {
+          lastFailure = f;
+        },
+        (a) => {
+          pendingApproval = a;
+        },
+      );
+      if (outcome === "approval") {
+        // 审批门：当前蜂排回队首，批准后带 approvals 重跑；拒绝则任务失败
+        queue.unshift(item);
+        const a = pendingApproval!;
+        this.emit(taskId, "kernel", "run.paused", { reason: `等待审批：${a.action}（${a.risk}）` });
+        this.pausedQueues.set(taskId, queue);
+        this.pendingApprovals.set(taskId, a.action);
+        return { taskId, status: "paused", reason: `等待审批：${a.action}` };
+      }
       if (outcome === "paused") {
         return { taskId, status: "paused", reason: "预算熔断，自动暂停（见 budget.exceeded / run.paused）" };
       }
@@ -256,7 +313,8 @@ export class HiveKernel {
     onVerdict: (v: ReviewVerdict) => void,
     enqueue: (next: QueueItem) => void,
     onFail: (reason: string) => void,
-  ): Promise<"ok" | "paused" | "failed"> {
+    onApproval: (a: { action: string; risk: string }) => void,
+  ): Promise<"ok" | "paused" | "failed" | "approval"> {
     const role = this.opts.chart.roles.find((r) => r.id === item.botId)!;
 
     // 门禁 1：预算预检
@@ -300,6 +358,7 @@ export class HiveKernel {
       this.emit(taskId, role.id, "error.reported", { message: msg, byBot: role.id, fatal: true });
     };
 
+    let askedApproval: string | undefined;
     const res = await runBot({
       workerPath: spec.workerPath,
       args: spec.args,
@@ -318,6 +377,8 @@ export class HiveKernel {
           .map((h) => ({ to: h.to, when: h.when })),
         // 共享大脑：接活先查库——知识库已有条目随任务包下发
         vault: this.vaultEntries(),
+        // 审批门：本任务已获批准的动作（重跑的蜂据此跳过再次请求）
+        approvals: this.grantedActions(taskId),
       },
       onMsg: (m: BotMsg) => {
         switch (m.type) {
@@ -349,6 +410,14 @@ export class HiveKernel {
             this.emit(taskId, role.id, "artifact.produced", { path: m.path, kind: m.kind });
             return;
           }
+          case "approval": {
+            // 门禁 7：高风险动作先过审批门——内核挂起任务，等 CEO 批准/拒绝
+            const risk = m.risk === "low" || m.risk === "medium" ? m.risk : "high";
+            askedApproval = m.action;
+            this.emit(taskId, role.id, "approval.requested", { action: m.action, risk });
+            onApproval({ action: m.action, risk });
+            return;
+          }
           case "usage": {
             this.emit(taskId, "kernel", "cost.recorded", {
               botId: role.id,
@@ -362,6 +431,10 @@ export class HiveKernel {
             return;
           }
           case "verdict": {
+            if (askedApproval) {
+              fail("请求审批的回合不应同时出审核结论：先批后审");
+              return;
+            }
             // 门禁 5：只有审核员能出结论，且用 shared 的 ReviewVerdict（BLOCK 必须带证据）
             if (role.kind !== "reviewer") {
               fail(`非审核员 bot ${role.id} 试图出审核结论，内核拒绝`);
@@ -401,6 +474,7 @@ export class HiveKernel {
       onFail(msg);
       return "failed";
     }
+    if (askedApproval) return "approval";
     this.emit(taskId, "kernel", "bot.exited", { botId: role.id, code: 0 });
 
     // 门禁 6：预算后检（本轮实际花费可能超任务预算 → 熔断暂停，不硬烧）
@@ -432,7 +506,12 @@ export class HiveKernel {
   }
 
   isPaused(taskId: string): boolean {
-    return this.pausedTasks.has(taskId) || this.manualPaused.has(taskId) || this.pausedQueues.has(taskId);
+    return (
+      this.pausedTasks.has(taskId) ||
+      this.manualPaused.has(taskId) ||
+      this.pausedQueues.has(taskId) ||
+      this.pendingApprovals.has(taskId)
+    );
   }
 
   /** 共享大脑：知识库已有条目（文件名清单，bot 接活先查库） */

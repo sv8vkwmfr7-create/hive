@@ -12,6 +12,8 @@ export interface TaskPack {
   handoffs?: Array<{ to: string; when: string }>;
   /** 共享大脑（团队知识库）已有条目——接活先查库，避免重复劳动 */
   vault?: Array<{ name: string }>;
+  /** 审批门：本任务已获 CEO 批准的动作（重跑的蜂据此跳过再次请求审批） */
+  approvals?: string[];
 }
 
 const MAX_ARTIFACT_CHARS = 4000;
@@ -77,6 +79,9 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
     pack.vault?.length
       ? `\n团队知识库（共享大脑）已有条目——开工前先查库，与已有条目重复的活不要重做，可引用其结论：\n${pack.vault.map((v) => `- ${v.name}`).join("\n")}`
       : `\n团队知识库（共享大脑）当前为空：你交付的产物会自动落库，成为团队的长期资产`,
+    pack.approvals?.length
+      ? `\n已获 CEO 批准、可直接执行的动作（无需再请求审批）：${pack.approvals.join("、")}`
+      : "",
     `\n回复格式（严格要求）：只输出一个 JSON 对象，不要任何多余文本、解释或代码块标记：`,
     replyShape,
   ]

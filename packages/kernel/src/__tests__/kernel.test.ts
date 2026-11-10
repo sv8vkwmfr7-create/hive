@@ -261,3 +261,59 @@ test("CEO 门：无可恢复队列时如实拒绝", async () => {
   assert.equal(res.status, "failed");
   assert.match(res.reason ?? "", /无可恢复/);
 });
+
+test("审批门：高风险动作挂起待批 → 批准后重跑该蜂直至 PASS 交付", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "审批门", brief: "send_external 需 CEO 批准", budgetUsd: 5 });
+  process.env.HIVE_MOCK_APPROVAL = "send_external";
+  try {
+    const res = await kernel.runTask(taskId);
+    assert.equal(res.status, "paused");
+    assert.match(res.reason ?? "", /等待审批/);
+    assert.equal(kernel.pendingApproval(taskId), "send_external");
+    assert.ok(kernel.store.replayTaskEvents(taskId).some((e) => e.kind === "approval.requested"), "应有 approval.requested");
+    assert.equal(kernel.isPaused(taskId), true);
+
+    await assert.rejects(() => kernel.approveTask(taskId, "wrong_action", "CEO"), /待批动作是/, "批错动作如实拒绝");
+
+    const res2 = await kernel.approveTask(taskId, "send_external", "CEO");
+    assert.equal(res2.status, "ok", `批准后应跑通：${res2.reason ?? ""}`);
+    assert.equal(kernel.pendingApproval(taskId), null);
+    const reviewerSpawns = kernel.store.replayTaskEvents(taskId).filter(
+      (e) => e.kind === "bot.spawned" && (e.payload as { botId: string }).botId === "reviewer",
+    );
+    assert.ok(reviewerSpawns.length >= 2, "批准后 reviewer 应重跑");
+    const k = kinds(kernel.store.replayTaskEvents(taskId));
+    assert.ok(k.includes("approval.granted"));
+    assert.ok(k.includes("run.resumed"));
+  } finally {
+    delete process.env.HIVE_MOCK_APPROVAL;
+  }
+});
+
+test("审批门：拒绝 → 任务如实失败，不放行", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "审批拒绝", brief: "拒绝外发", budgetUsd: 5 });
+  process.env.HIVE_MOCK_APPROVAL = "send_external";
+  try {
+    const res = await kernel.runTask(taskId);
+    assert.equal(res.status, "paused");
+
+    kernel.denyTask(taskId, "send_external", "CEO", "不允许对外发送");
+    const k = kinds(kernel.store.replayTaskEvents(taskId));
+    assert.ok(k.includes("approval.denied"));
+    const last = kernel.store.replayTaskEvents(taskId).filter((e) => e.kind === "task.status_changed").at(-1);
+    assert.equal((last!.payload as { to: string }).to, "failed");
+    assert.match((last!.payload as { reason: string }).reason, /审批被拒/);
+    assert.equal(kernel.pendingApproval(taskId), null);
+    assert.equal(existsSync(join(dataDir, "ledger", `task-${taskId}.receipt.json`)), false, "被拒任务不出账单");
+
+    const r = await kernel.resumeTask(taskId);
+    assert.equal(r.status, "failed");
+    assert.match(r.reason ?? "", /无可恢复/, "拒绝后队列已清空，不可续跑");
+  } finally {
+    delete process.env.HIVE_MOCK_APPROVAL;
+  }
+});

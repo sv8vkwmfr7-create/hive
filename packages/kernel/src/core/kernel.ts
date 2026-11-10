@@ -74,6 +74,10 @@ export class HiveKernel {
   readonly store: EventStore;
   private budget: BudgetGuard;
   private pausedTasks = new Set<string>();
+  /** CEO ⏸️：人工暂停标记（runTask 循环在每个蜂房边界检查） */
+  private manualPaused = new Set<string>();
+  /** 暂停时未跑完的执行队列：resumeTask 从这里继续 */
+  private pausedQueues = new Map<string, QueueItem[]>();
   private listeners = new Set<(e: StoredEvent) => void>();
 
   constructor(private opts: KernelOptions) {
@@ -122,13 +126,67 @@ export class HiveKernel {
     const created = this.store.replayTaskEvents(taskId).find((e) => e.kind === "task.created");
     if (!created) throw new Error(`任务不存在：#${taskId}`);
     const brief = (created.payload as { brief: string }).brief;
-    const budgetUsd = (created.payload as { budgetUsd?: number }).budgetUsd;
     const orchestrator = this.opts.chart.roles.find((r) => r.kind === "orchestrator")!;
 
     this.emit(taskId, "kernel", "task.assigned", { from: "kernel", to: orchestrator.id, instruction: brief });
 
     const queue: QueueItem[] = [{ botId: orchestrator.id, instruction: brief }];
+    return this.drain(taskId, queue, created);
+  }
+
+  /** CEO ⏸️：人工暂停。运行中的那只蜂跑完本回合，然后在蜂房边界停下 */
+  pauseTask(taskId: string, by = "human"): void {
+    if (!this.store.replayTaskEvents(taskId).some((e) => e.kind === "task.created")) {
+      throw new Error(`任务不存在：#${taskId}`);
+    }
+    this.manualPaused.add(taskId);
+    this.emit(taskId, "human", "run.paused", { reason: `人工暂停（⏸️）by ${by}` });
+  }
+
+  /** CEO ▶️：恢复——从暂停边界继续跑剩余队列 */
+  async resumeTask(taskId: string, by = "human"): Promise<RunResult> {
+    const queue = this.pausedQueues.get(taskId);
+    if (!queue) {
+      return {
+        taskId,
+        status: "failed",
+        reason: "无可恢复的执行队列（任务未在人工暂停态；预算熔断的任务请调整预算后重新发起）",
+      };
+    }
+    this.emit(taskId, "human", "run.resumed", {});
+    this.manualPaused.delete(taskId);
+    this.pausedQueues.delete(taskId);
+    const created = this.store.replayTaskEvents(taskId).find((e) => e.kind === "task.created")!;
+    return this.drain(taskId, queue, created);
+  }
+
+  /** CEO ✋：接管——人工直接给某只蜂派指令（须先 ⏸️ 暂停；只可派给架构图内的蜂房） */
+  instructTask(taskId: string, botId: string, instruction: string, by = "human"): void {
+    const role = this.opts.chart.roles.find((r) => r.id === botId);
+    if (!role) throw new Error(`chart 中无此 bot：${botId}——接管派工只能派给架构图内的蜂房`);
+    if (!instruction?.trim()) throw new Error("接管指令不能为空");
+    const queue = this.pausedQueues.get(taskId);
+    if (!queue) throw new Error(`任务 #${taskId} 不在人工暂停态：先 ⏸️ 暂停，再 ✋ 接管派工`);
+    queue.unshift({ botId, instruction });
+    this.emit(taskId, "human", "run.taken_over", { by });
+    this.emit(taskId, "human", "task.assigned", { from: `human:${by}`, to: botId, instruction });
+  }
+
+  /** 执行队列主循环（runTask 与 resumeTask 共用）：每只蜂之间检查人工暂停门 */
+  private async drain(taskId: string, queue: QueueItem[], created: StoredEvent): Promise<RunResult> {
+    const budgetUsd = (created.payload as { budgetUsd?: number }).budgetUsd;
     let verdict: ReviewVerdict | null = null;
+    // 暂停/恢复场景：从事件流恢复已有审核结论（如恢复前审核员已出 PASS/BLOCK）
+    const prevVerdict = this.store.replayTaskEvents(taskId).find((e) => e.kind === "review.verdict");
+    if (prevVerdict) {
+      const v = prevVerdict.payload as { verdict: "PASS" | "BLOCK" | "HOLD"; evidence?: string };
+      verdict =
+        v.verdict === "PASS"
+          ? { verdict: "PASS" }
+          : v.verdict === "BLOCK"
+            ? { verdict: "BLOCK", evidence: v.evidence ?? "" }
+            : { verdict: "HOLD", reason: "（恢复前存在 HOLD）" };
+    }
     let lastFailure: string | undefined;
     const onVerdict = (v: ReviewVerdict) => {
       verdict = v;
@@ -137,6 +195,16 @@ export class HiveKernel {
     const getVerdict = (): ReviewVerdict | null => verdict;
 
     while (queue.length) {
+      // CEO ⏸️ 门：蜂房边界检查——运行中的蜂已跑完，剩余队列存起来等 resume
+      if (this.manualPaused.has(taskId)) {
+        this.emit(taskId, "kernel", "run.paused", { reason: "人工暂停生效：停在蜂房边界" });
+        this.pausedQueues.set(taskId, queue);
+        return {
+          taskId,
+          status: "paused",
+          reason: "人工暂停（⏸️）：已停在蜂房边界；▶️ resumeTask 或 ✋ instructTask 继续",
+        };
+      }
       const item = queue.shift()!;
       const outcome = await this.runOne(taskId, item, budgetUsd, onVerdict, (next) => queue.push(next), (f) => {
         lastFailure = f;
@@ -364,7 +432,7 @@ export class HiveKernel {
   }
 
   isPaused(taskId: string): boolean {
-    return this.pausedTasks.has(taskId);
+    return this.pausedTasks.has(taskId) || this.manualPaused.has(taskId) || this.pausedQueues.has(taskId);
   }
 
   /** 共享大脑：知识库已有条目（文件名清单，bot 接活先查库） */

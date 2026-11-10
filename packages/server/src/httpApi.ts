@@ -86,6 +86,12 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
       return handleTaskDetail(res, taskId);
     }
 
+    // CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工（V0.5）
+    const ctrlMatch = path.match(/^\/api\/tasks\/([^/]+)\/(pause|resume|instruct)$/);
+    if (ctrlMatch && req.method === "POST") {
+      return handleControl(req, res, ctrlMatch[1], ctrlMatch[2]);
+    }
+
     return serveStatic(res, path);
   }
 
@@ -122,7 +128,42 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
     const summary = listTasks(kernel).find((t) => t.taskId === taskId);
     if (!summary) return sendJson(res, 404, { error: `任务不存在：#${taskId}` });
     const rp = replayTask(kernel.store, taskId);
-    return sendJson(res, 200, { ...summary, timeline: rp.timeline, receipt: rp.receipt });
+    return sendJson(res, 200, { ...summary, paused: kernel.isPaused(taskId), timeline: rp.timeline, receipt: rp.receipt });
+  }
+
+  /** CEO 门端点：pause / resume / instruct（错误如实 400，不吞异常） */
+  function handleControl(req: IncomingMessage, res: ServerResponse, taskId: string, action: string): void {
+    let body = "";
+    req.on("data", (c: string) => {
+      body += c;
+      if (body.length > 100_000) req.destroy();
+    });
+    req.on("end", () => {
+      try {
+        const input = JSON.parse(body || "{}") as { by?: string; botId?: string; instruction?: string };
+        const by = input.by ?? "human";
+        if (action === "pause") {
+          kernel.pauseTask(taskId, by);
+          return sendJson(res, 200, { ok: true, taskId, action: "paused" });
+        }
+        if (action === "resume") {
+          void Promise.resolve(kernel.resumeTask(taskId, by)).then((result) => {
+            sendJson(res, 200, { ok: true, taskId, action: "resumed", status: result.status, reason: result.reason });
+          });
+          return;
+        }
+        if (action === "instruct") {
+          if (!input.botId || !input.instruction) {
+            return sendJson(res, 400, { error: "botId 与 instruction 必填" });
+          }
+          kernel.instructTask(taskId, input.botId, input.instruction, by);
+          return sendJson(res, 200, { ok: true, taskId, action: "instructed", botId: input.botId });
+        }
+        return sendJson(res, 400, { error: `未知操作：${action}` });
+      } catch (err) {
+        return sendJson(res, 400, { error: errText(err) });
+      }
+    });
   }
 
   function handleArtifacts(res: ServerResponse, taskId: string): void {

@@ -183,3 +183,81 @@ test("共享大脑：未配 vaultDir 不落库，RunResult 无 vaultPath", async
   assert.equal(res.status, "ok");
   assert.equal(res.vaultPath, undefined);
 });
+
+test("CEO 门 ⏸️/▶️：运行中暂停停在蜂房边界，恢复续跑至交付", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "暂停续跑", brief: "人工控制流", budgetUsd: 5 });
+
+  // 起跑不 await，第一只蜂被 spawn 后按下暂停
+  const running = kernel.runTask(taskId);
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (kernel.store.replayTaskEvents(taskId).some((e) => e.kind === "bot.spawned")) break;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  kernel.pauseTask(taskId, "CEO");
+  const res = await running;
+  assert.equal(res.status, "paused");
+  assert.match(res.reason ?? "", /人工暂停/);
+
+  const spawnedMid = kernel.store.replayTaskEvents(taskId).filter((e) => e.kind === "bot.spawned");
+  assert.ok(spawnedMid.length < 4, `暂停时应未跑完 4 蜂，实际 ${spawnedMid.length}`);
+  assert.ok(
+    !spawnedMid.some((e) => (e.payload as { botId: string }).botId === "reviewer"),
+    "审核员不应在暂停前被派工",
+  );
+
+  const resumed = await kernel.resumeTask(taskId, "CEO");
+  assert.equal(resumed.status, "ok", `恢复后应 ok：${resumed.reason ?? ""}`);
+  assert.ok(resumed.receipt);
+  const allSpawns = kernel.store.replayTaskEvents(taskId).filter((e) => e.kind === "bot.spawned");
+  assert.equal(allSpawns.length, 4, "恢复后 4 蜂全部跑完");
+  const k = kinds(kernel.store.replayTaskEvents(taskId));
+  assert.ok(k.includes("run.paused"));
+  assert.ok(k.includes("run.resumed"));
+});
+
+test("CEO 门 ⏸️ 先于执行：一次蜂都不 spawn，恢复后完整交付", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "先停后跑", brief: "暂停先于执行", budgetUsd: 5 });
+  kernel.pauseTask(taskId, "CEO");
+  const res = await kernel.runTask(taskId);
+  assert.equal(res.status, "paused");
+  assert.equal(kernel.store.replayTaskEvents(taskId).filter((e) => e.kind === "bot.spawned").length, 0);
+  const resumed = await kernel.resumeTask(taskId);
+  assert.equal(resumed.status, "ok");
+});
+
+test("CEO 门 ✋ 接管：暂停后人工派工生效；越权与未暂停如实拒绝", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "接管派工", brief: "CEO 直接派给写手", budgetUsd: 5 });
+  kernel.pauseTask(taskId, "CEO");
+  await kernel.runTask(taskId); // 立即停在第一边界
+
+  const other = kernel.createTask({ title: "未暂停任务", brief: "x", budgetUsd: 5 });
+  assert.throws(() => kernel.instructTask(other, "writer", "x"), /不在人工暂停态/, "未暂停不可接管");
+  assert.throws(() => kernel.instructTask(taskId, "ghost-bot", "x"), /无此 bot/, "架构图外的 bot 拒绝");
+  assert.throws(() => kernel.instructTask(taskId, "writer", "  "), /指令不能为空/, "空指令拒绝");
+
+  kernel.instructTask(taskId, "writer", "CEO 指令：直接基于简报写终稿", "CEO");
+  const resumed = await kernel.resumeTask(taskId, "CEO");
+  assert.equal(resumed.status, "ok", `接管后应跑通：${resumed.reason ?? ""}`);
+  const spawned = kernel.store
+    .replayTaskEvents(taskId)
+    .filter((e) => e.kind === "bot.spawned")
+    .map((e) => (e.payload as { botId: string }).botId);
+  assert.equal(spawned[0], "writer", "接管派工的蜂应第一个被 spawn");
+  assert.ok(spawned.includes("reviewer"), "接管后流程仍走独立审核");
+});
+
+test("CEO 门：无可恢复队列时如实拒绝", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "无可恢复", brief: "从未暂停", budgetUsd: 5 });
+  const res = await kernel.resumeTask(taskId);
+  assert.equal(res.status, "failed");
+  assert.match(res.reason ?? "", /无可恢复/);
+});

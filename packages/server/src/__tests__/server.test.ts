@@ -146,3 +146,47 @@ test("server：预算熔断任务在看板里如实显示 ⏸️ paused", async 
     await server.close();
   }
 });
+
+test("CEO 门 API：pause/resume/instruct 端点，错误如实 400", async () => {
+  const kernel = new HiveKernel({ dataDir: mkdtempSync(join(tmpdir(), "hive-server-ctrl-")), chart });
+  const server = await createHiveServer({ kernel });
+  try {
+    const taskId = kernel.createTask({ title: "API 控制", brief: "端点验收", budgetUsd: 5 });
+    const base = `http://127.0.0.1:${server.port}`;
+
+    const pauseRes = await fetch(`${base}/api/tasks/${taskId}/pause`, {
+      method: "POST",
+      body: JSON.stringify({ by: "CEO" }),
+    });
+    assert.equal(pauseRes.status, 200);
+
+    const runRes = await kernel.runTask(taskId); // 暂停标记生效 → 立即停在边界
+    assert.equal(runRes.status, "paused");
+    assert.equal(kernel.isPaused(taskId), true);
+
+    const instructRes = await fetch(`${base}/api/tasks/${taskId}/instruct`, {
+      method: "POST",
+      body: JSON.stringify({ by: "CEO", botId: "writer", instruction: "直接写终稿" }),
+    });
+    assert.equal(instructRes.status, 200);
+
+    const badRes = await fetch(`${base}/api/tasks/${taskId}/instruct`, {
+      method: "POST",
+      body: JSON.stringify({ botId: "ghost-bot", instruction: "x" }),
+    });
+    assert.equal(badRes.status, 400);
+    const badBody = (await badRes.json()) as { error: string };
+    assert.match(badBody.error, /无此 bot/);
+
+    const resumeRes = await fetch(`${base}/api/tasks/${taskId}/resume`, {
+      method: "POST",
+      body: JSON.stringify({ by: "CEO" }),
+    });
+    assert.equal(resumeRes.status, 200);
+    const resumeBody = (await resumeRes.json()) as { status: string };
+    assert.equal(resumeBody.status, "ok");
+    assert.equal(kernel.isPaused(taskId), false);
+  } finally {
+    await server.close();
+  }
+});

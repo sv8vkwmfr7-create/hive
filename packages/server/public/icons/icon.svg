@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#14161a"/>
+  <polygon points="256,70 414,162 414,350 256,442 98,350 98,162" fill="#20242b" stroke="#ffb454" stroke-width="14"/>
+  <text x="256" y="308" font-size="150" text-anchor="middle">🐝</text>
+  <text x="256" y="392" font-size="52" text-anchor="middle" fill="#ffb454" font-family="monospace">HIVE</text>
+</svg>

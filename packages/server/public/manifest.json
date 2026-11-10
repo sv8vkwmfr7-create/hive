@@ -1,0 +1,17 @@
+{
+  "name": "蜂巢审批 · Hive",
+  "short_name": "蜂巢审批",
+  "description": "AI 团队 CEO 的手机拍板入口：批准 / 拒绝 / 恢复，一屏一单",
+  "start_url": "/approve.html",
+  "display": "standalone",
+  "background_color": "#14161a",
+  "theme_color": "#14161a",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

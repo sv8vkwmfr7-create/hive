@@ -11,6 +11,7 @@
     <h1>🐝 蜂巢看板</h1>
     <span id="conn" class="dim">连接中…</span>
     <span id="team" class="dim"></span>
+    <a href="/approve.html" style="margin-left:auto;color:var(--accent);text-decoration:none">📱 手机审批</a>
   </header>
 
   <section class="composer">
@@ -46,5 +47,6 @@
   </main>
 
   <script src="/app.js"></script>
+  <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

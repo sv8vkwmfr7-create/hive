@@ -13,6 +13,10 @@ export interface TaskSummary {
   startedAt?: string;
   updatedAt?: string;
   eventCount: number;
+  /** CEO 门：任务是否处于暂停态（人工暂停/审批挂起/熔断） */
+  paused?: boolean;
+  /** 审批门：待批动作（无则 null）——手机审批页的主数据源 */
+  pendingApproval?: string | null;
 }
 
 /** 从单个任务的事件流推导视图模型（不信任缓存，只信事件） */
@@ -68,6 +72,14 @@ export function listTasks(kernel: HiveKernel): TaskSummary[] {
   }
   const summaries = [...byTask.values()]
     .map(summarizeTask)
-    .filter((s): s is TaskSummary => s != null);
-  return summaries.sort((a, b) => Number(b.taskId) - Number(a.taskId));
+    .filter((s): s is TaskSummary => s != null)
+    .map((s) => ({
+      ...s,
+      paused: kernel.isPaused(s.taskId),
+      pendingApproval: kernel.pendingApproval(s.taskId),
+    }));
+  // 待批任务置顶（手机审批页的第一屏），其余按编号倒序
+  return summaries.sort(
+    (a, b) => Number(!!b.pendingApproval) - Number(!!a.pendingApproval) || Number(b.taskId) - Number(a.taskId),
+  );
 }

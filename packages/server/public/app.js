@@ -5,6 +5,7 @@ const state = {
   selected: null,
   detail: null,
   spend: 0,
+  chart: null,
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -34,6 +35,8 @@ function briefOf(t) {
     case "task.status_changed": return p.reason ?? p.to;
     case "budget.exceeded": return `已花 $${p.usedUsd} 超预算 $${p.limitUsd}`;
     case "run.paused": return p.reason ?? "";
+    case "run.resumed": return "▶️ 人工恢复";
+    case "run.taken_over": return `✋ 接管 by ${p.by}`;
     case "bot.exited": return `${p.botId} 退出（code=${p.code})`;
     case "error.reported": return p.message;
     default: return "";
@@ -78,7 +81,10 @@ function renderDetail() {
   if (!d) return;
   $("#status-line").innerHTML =
     `任务 #${d.taskId}「${escapeHtml(d.title)}」 ${d.glyph} ${d.status}` +
-    ` · 已花费 <b>$${d.spendUsd.toFixed(2)}</b>${d.budgetUsd != null ? `/预算 $${d.budgetUsd}` : ""}`;
+    ` · 已花费 <b>$${d.spendUsd.toFixed(2)}</b>${d.budgetUsd != null ? `/预算 $${d.budgetUsd}` : ""}` +
+    (d.paused ? ` · <b>⏸️ 已暂停</b>` : "");
+
+  renderCeoControls(d);
 
   const tl = $("#timeline");
   tl.innerHTML = "";
@@ -92,6 +98,62 @@ function renderDetail() {
   out.scrollTop = out.scrollHeight;
 
   renderReceipt(d.receipt);
+}
+
+/* ---------- CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工 ---------- */
+function renderCeoControls(d) {
+  const ctrlId = "ceo-controls";
+  let ctrl = document.getElementById(ctrlId);
+  if (!ctrl) {
+    ctrl = document.createElement("div");
+    ctrl.id = ctrlId;
+    ctrl.style.margin = "6px 0";
+    $("#status-line").after(ctrl);
+  }
+  const roles = (state.chart?.roles ?? [])
+    .map((r) => `<option value="${escapeHtml(r.id)}">🐝 ${escapeHtml(r.name || r.id)}</option>`)
+    .join("");
+  ctrl.innerHTML =
+    `<button id="btn-pause" title="停在下一次蜂房边界">⏸️ 暂停</button>` +
+    `<button id="btn-resume">▶️ 恢复</button>` +
+    ` <select id="takeover-bot">${roles}</select>` +
+    `<input id="takeover-text" placeholder="✋ 接管：给选中的蜂房派指令" size="32"/>` +
+    `<button id="btn-takeover">✋ 接管</button>` +
+    ` <span id="ctrl-msg" class="dim"></span>`;
+  $("#btn-pause").onclick = async () => {
+    try {
+      await api(`/api/tasks/${d.taskId}/pause`, { method: "POST", body: JSON.stringify({ by: "board" }) });
+      $("#ctrl-msg").textContent = "已暂停（运行中的蜂跑完本回合后停）";
+    } catch (e) {
+      $("#ctrl-msg").textContent = String(e.message ?? e);
+    }
+    void selectTask(d.taskId);
+  };
+  $("#btn-resume").onclick = async () => {
+    $("#ctrl-msg").textContent = "恢复中…";
+    try {
+      const r = await api(`/api/tasks/${d.taskId}/resume`, { method: "POST", body: JSON.stringify({ by: "board" }) });
+      $("#ctrl-msg").textContent = `已恢复 → ${r.status}${r.reason ? `（${r.reason}）` : ""}`;
+    } catch (e) {
+      $("#ctrl-msg").textContent = String(e.message ?? e);
+    }
+    void selectTask(d.taskId);
+  };
+  $("#btn-takeover").onclick = async () => {
+    const botId = $("#takeover-bot").value;
+    const instruction = $("#takeover-text").value;
+    try {
+      await api(`/api/tasks/${d.taskId}/instruct`, {
+        method: "POST",
+        body: JSON.stringify({ by: "board", botId, instruction }),
+      });
+      $("#ctrl-msg").textContent = `已派给 ${botId}（恢复后第一个执行）`;
+      $("#takeover-text").value = "";
+    } catch (e) {
+      $("#ctrl-msg").textContent = String(e.message ?? e);
+    }
+    void selectTask(d.taskId);
+  };
 }
 
 function renderReceipt(receipt) {
@@ -198,6 +260,7 @@ ws.onmessage = (m) => {
 };
 
 fetch("/api/chart").then((r) => r.json()).then(({ chart }) => {
+  state.chart = chart;
   $("#team").textContent = `团队：${chart.team}（${chart.roles.length} 蜂房）`;
 });
 

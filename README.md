@@ -4,25 +4,36 @@
 > 你在任何聊天工具里说一句话，一支看得见、管得住、越用越强的 AI bot 团队自动完成拆解 → 分派 → 协作 → 互审 → 汇总。你当 CEO（看板、拍板、发工资），bot 当员工（接活、干活、交结果）。
 
 - **完整规划与调研**：[交接文档.md](./交接文档.md)（自包含，接手者从这里开始）
-- **当前引擎可用性**：[docs/引擎清单.md](./docs/引擎清单.md)
+- **引擎注册表**：[docs/引擎清单.md](./docs/引擎清单.md)（12 引擎状态表）
 - **工作语言**：中文（代码与标识符用英文）
 
-## 当前状态
+## 当前状态（2026-11-11）
 
-**MVP 开发中**。北极星：TTFD ≤ 30 分钟（装上 → 飞书发一句话 → 3 bot 团队交付研究简报 → 账单落盘，人工只拍板一次）。
+**MVP 全链 + V0.5 全清 + V1.0 部分提前**，58/58 测试全绿，20 个 commit。
+
+| 能力 | 状态 |
+|---|---|
+| 真引擎 3-bot 闭环（拆解→分派→协作→互审→交付） | ✅ 多次 PASS（17~45s，账单落盘） |
+| CEO 三门 ⏸️暂停 / ▶️恢复 / ✋接管 | ✅ 内核门 + 看板按钮 + API |
+| 审批门 ✅批准 / ⛔拒绝（含 API 引擎协议） | ✅ 端到端验收 |
+| Mission Control 蜂房画布 + 手机审批 PWA | ✅ 浏览器验收 |
+| 共享大脑（Obsidian 落库 / 接活查库） | ✅ v0 |
+| 团队模板 **20 个**（社区 11 + 原创 4 + 自研 5） | ✅ 全部合法 |
+| 引擎注册表 **12 契约**（deepseek/qwen 实测通） | ✅ 开箱即用 |
+| 聊天通道 feishu / telegram / discord | ✅ 连接器就绪（真回调等凭据，§快速开始） |
 
 ## 仓库结构
 
 ```
 hive/
 ├── packages/
-│   ├── kernel/        # Node daemon：任务总线、事件溯源、进程管理、熔断 ✅ v0.1（mock 闭环已通）
-│   ├── server/        # API + WebSocket，实时推 Mission Control ✅ v0.1（含最简看板）
-│   ├── ui/            # Next.js：Mission Control、组织编辑器、账单页（未开始）
-│   ├── adapters/      # 引擎适配器：契约 json + 桥接 worker ✅ v0.1（离线全链路已验证）
-│   ├── connectors/    # 平台连接器：飞书 ✅ v0.1（离线全链路验证，等凭据上线）
-│   └── shared/        # 协议唯一真相源：事件 schema、org-chart、交接协议、账本 ✅ v0.1
-├── teams/             # 团队模板（chart.json 兼容 agent-org-chart）
+│   ├── kernel/        # 内核：任务总线、事件溯源、进程管理、熔断、CEO 三门、凭据代理 ✅
+│   ├── server/        # API + WebSocket + 看板（时间线/画布/输出流/账单）✅
+│   ├── adapters/      # 12 引擎契约 + 桥接 worker + 凭据代理 ✅
+│   ├── connectors/    # 飞书（长连接+webhook）/ Telegram（长轮询）/ Discord（gateway）✅
+│   └── shared/        # 协议唯一真相源：事件 schema、org-chart、交接协议、账本 ✅
+├── teams/             # 20 个团队模板（兼容 agent-org-chart，含社区 11 套）
+├── scripts/           # ignition 自检 / 真引擎闭环 / 模板导入 / hive-chat 统一入口
 └── docs/              # 引擎清单等工程文档
 ```
 
@@ -31,25 +42,39 @@ hive/
 1. **门禁装在内核，不装在 bot 嘴里**——权限、预算、审批门由内核强制执行
 2. **一切皆事件**——append-only（JSONL + SQLite 索引），任何一单可完整回放审计
 3. **诚实熔断**——预算超限自动暂停；失败如实标 ⛔，汇总零谎报
+4. **凭据代理**——真 key 只在内核进程；worker 只拿 127.0.0.1 代理地址，泄漏审计干净
 
 ## 快速开始
 
 ```bash
-pnpm install
-pnpm build     # shared → kernel 按拓扑序构建
-pnpm test      # shared 12 + kernel 5 = 17 个测试
-pnpm --filter @hive/kernel demo   # 第一个本地任务闭环：mock 团队 4 bot 交付 + 账单落盘
-pnpm --filter @hive/server demo   # 起最简 Web 看板（时间线/输出流/账单，实时 WS），自动发一单演示
-pnpm --filter @hive/adapters smoke -- codex   # 引擎复冒烟（codex 额度 11-14 重置后跑）
-node scripts/ignition.mjs                     # 点火自检：盘点凭据与引擎状态（零成本）
-node --env-file=.env scripts/ignition.mjs --smoke   # 凭据齐后：真引擎冒烟点火
+pnpm install && pnpm build
+pnpm test                                    # 58 个测试
+pnpm --filter @hive/kernel demo              # mock 团队闭环 demo
+node --env-file=.env scripts/run-real-loop.mjs   # 真引擎 3-bot 闭环（凭据代理开启）
+node scripts/import-team.mjs <chart.json> --with-reviewer   # 导入社区团队
+node scripts/import-catalog.mjs              # 批量导入 agent-org-chart 全目录
+node scripts/hive-chat.mjs                   # 聊天统一入口（自动检测已填通道）
+```
+
+### 聊天段验收（最后一段，填任一凭据即可）
+
+三选一填进 `.env`：
+- **Telegram（最快）**：@BotFather → /newbot → token → `TELEGRAM_BOT_TOKEN=`
+- **飞书**：open.feishu.cn 建企业自建应用（长连接）→ 三值
+- **Discord**：Developer Portal → Bot → token（开 MESSAGE CONTENT intent）
+
+然后：
+```bash
+node --env-file=.env scripts/ignition.mjs --smoke   # 引擎复核
+node --env-file=.env scripts/hive-chat.mjs          # 起通道
+# 在聊天里发一句话 → 3 bot 团队交付简报 → 账单落盘 → 聊天收到 ✅ 回帖
 ```
 
 ## 路线图
 
-| 版本 | 内容 | 不做 |
+| 版本 | 内容 | 状态 |
 |---|---|---|
-| MVP | 内核(任务总线+事件溯源) + 飞书连接器 + 3 引擎适配 + 聊天闭环 + 最简看板 + 账本 | 画布动画、组织编辑器、多平台、打包 |
-| V0.5 | Mission Control 画布 · 审批 PWA · 预算熔断 · 暂停/接管 | 模板市场 |
-| V1.0 | 组织编辑器 · agent-org-chart 导入 · 6+ 连接器 · Tauri 打包 | 市场、多人 |
-| V2 | 开源发布 · 模板市场 · 技能锻造厂 | — |
+| **MVP** | 内核 / 飞书连接器 / 3 引擎 / 聊天闭环 / 看板 / 账本 | ✅ 全实现（真回调等凭据） |
+| **V0.5** | Mission Control 画布 / 手机审批 PWA / 预算熔断 / ⏸️暂停/✋接管 | ✅ 全清 |
+| **V1.0** | 组织编辑器 / agent-org-chart 导入 ✅ / 6+ 连接器（2/6）✅部分 / 凭据代理 ✅ / Tauri | 🔧 进行中 |
+| **V2 生态** | 开源发布 / 模板市场 / 技能锻造厂 | ⬜ |

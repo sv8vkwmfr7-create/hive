@@ -516,17 +516,45 @@ export class HiveKernel {
     );
   }
 
-  /** 共享大脑：知识库已有条目（文件名清单，bot 接活先查库） */
-  private vaultEntries(): Array<{ name: string }> {
+  /** 共享大脑：知识库已有条目（文件名 + frontmatter 语义，bot 接活先查库并判断相关性）。扫根目录与一级子目录 */
+  private vaultEntries(): Array<{ name: string; title?: string; tags?: string[]; date?: string }> {
     const dir = this.opts.vaultDir;
     if (!dir || !existsSync(dir)) return [];
+    const parseEntry = (fullPath: string, name: string) => {
+      const entry: { name: string; title?: string; tags?: string[]; date?: string } = { name };
+      try {
+        // 只读文件头 800 字符解析 frontmatter，避免大文件 IO
+        const head = readFileSync(fullPath, "utf8").slice(0, 800);
+        const fm = head.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (fm) {
+          const title = fm[1].match(/^title:\s*(.+)$/m);
+          if (title) entry.title = title[1].trim();
+          const date = fm[1].match(/^date:\s*(.+)$/m);
+          if (date) entry.date = date[1].trim();
+          const tags = fm[1].match(/^tags:\s*\[(.*)\]$/m);
+          if (tags) entry.tags = tags[1].split(",").map((t) => t.trim()).filter(Boolean);
+        }
+      } catch {
+        // frontmatter 解析失败不影响条目列出
+      }
+      return entry;
+    };
+    const list: Array<{ name: string; title?: string; tags?: string[]; date?: string }> = [];
     try {
-      return readdirSync(dir, { withFileTypes: true })
-        .filter((e) => e.isFile() && e.name.endsWith(".md"))
-        .map((e) => ({ name: e.name }));
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (e.isFile() && e.name.endsWith(".md")) list.push(parseEntry(join(dir, e.name), e.name));
+        // 落库目录（蜂巢交付/）在子目录里——也要进查库视野
+        if (e.isDirectory()) {
+          const sub = join(dir, e.name);
+          for (const f of readdirSync(sub, { withFileTypes: true })) {
+            if (f.isFile() && f.name.endsWith(".md")) list.push(parseEntry(join(sub, f.name), `${e.name}/${f.name}`));
+          }
+        }
+      }
     } catch {
-      return [];
+      // 目录不可读 → 返回已收集部分
     }
+    return list;
   }
 
   /**

@@ -179,7 +179,14 @@ test("共享大脑：任务 PASS 后交付摘要自动落 vault（产物全文 +
   assert.match(digest, /## 交付物/, "交付物段落");
   assert.match(digest, /## 产出/, "产物全文应内嵌");
   assert.match(digest, /chief → researcher/, "流转记录");
+
+  // 二次任务：pack.vault 应携带上一单的语义条目（title/date/tags）
+  const vaultList = kernel['vaultEntries']();
+  assert.equal(vaultList.length, 1, '落库后应有 1 条知识库条目');
+  assert.match(vaultList[0].title ?? '', /落库验证/, 'frontmatter title 应被解析');
+  assert.deepEqual(vaultList[0].tags, ['蜂巢交付'], 'tags 应被解析');
 });
+
 
 test("共享大脑：未配 vaultDir 不落库，RunResult 无 vaultPath", async () => {
   const dataDir = tmpDataDir();

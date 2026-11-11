@@ -10,8 +10,8 @@ export interface TaskPack {
   inputArtifacts: Array<{ botId: string; path: string }>;
   /** 本 bot 的合法派单链（chart 边），由内核传入；真正的强制在内核门禁 */
   handoffs?: Array<{ to: string; when: string }>;
-  /** 共享大脑（团队知识库）已有条目——接活先查库，避免重复劳动 */
-  vault?: Array<{ name: string }>;
+  /** 共享大脑（团队知识库）已有条目——接活先查库，避免重复劳动；带 frontmatter 语义 */
+  vault?: Array<{ name: string; title?: string; tags?: string[]; date?: string }>;
   /** 审批门：本任务已获 CEO 批准的动作（重跑的蜂据此跳过再次请求审批） */
   approvals?: string[];
   /** 角色护栏：执行这些高风险动作前必须先在回复里请求审批（内核挂起等 CEO） */
@@ -84,7 +84,12 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
       ? `\n合法交接目标（只能从中选一个，没有匹配就选最接近的）：\n${handoffList}`
       : `\n（你没有合法交接目标：干完即交付，不要试图 handoff）`,
     pack.vault?.length
-      ? `\n团队知识库（共享大脑）已有条目——开工前先查库，与已有条目重复的活不要重做，可引用其结论：\n${pack.vault.map((v) => `- ${v.name}`).join("\n")}`
+      ? `\n团队知识库（共享大脑）已有条目——开工前先查库，与已有条目重复的活不要重做，可引用其结论：\n${pack.vault
+          .map((v) => {
+            const meta = [v.title, v.date, v.tags?.length ? `[${v.tags.join(",")}]` : ""].filter(Boolean).join(" · ");
+            return `- ${v.name}${meta ? `（${meta}）` : ""}`;
+          })
+          .join("\n")}`
       : `\n团队知识库（共享大脑）当前为空：你交付的产物会自动落库，成为团队的长期资产`,
     pack.approvals?.length
       ? `\n已获 CEO 批准、可直接执行的动作（无需再请求审批）：${pack.approvals.join("、")}`

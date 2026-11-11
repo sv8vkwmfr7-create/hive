@@ -37,7 +37,7 @@ const proxy = await startCredentialProxy({ adaptersDir: join(hiveRoot, "packages
 const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), proxyUrl: proxy.url, proxySecret: proxy.secret });
 // 共享大脑：设 HIVE_VAULT=<vault 目录> → 任务 PASS 后交付摘要自动落库（Obsidian）
 const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir: process.env.HIVE_VAULT ?? undefined });
-const board = await createHiveServer({ kernel });
+const board = await createHiveServer({ kernel, teamsDir: join(hiveRoot, "teams") });
 const client = new FeishuClient({ appId: FEISHU_APP_ID, appSecret: FEISHU_APP_SECRET });
 const connector = new FeishuConnector({
   kernel,

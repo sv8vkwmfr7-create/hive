@@ -32,7 +32,7 @@ const dataDir = join(connectorRoot, "data", `tg-demo-${new Date().toISOString().
 const proxy = await startCredentialProxy({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), env: process.env });
 const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), proxyUrl: proxy.url, proxySecret: proxy.secret });
 const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir: process.env.HIVE_VAULT ?? undefined });
-const board = await createHiveServer({ kernel });
+const board = await createHiveServer({ kernel, teamsDir: join(hiveRoot, "teams") });
 const client = new TelegramClient({ token: TELEGRAM_BOT_TOKEN, baseUrl: TELEGRAM_API_BASE });
 const connector = new TelegramConnector({
   kernel,

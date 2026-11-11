@@ -35,7 +35,7 @@ const adaptersDir = join(hiveRoot, "packages", "adapters", "adapters");
 const proxy = await startCredentialProxy({ adaptersDir, env: process.env });
 const workers = createAdapterResolver({ adaptersDir, proxyUrl: proxy.url, proxySecret: proxy.secret });
 const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir: process.env.HIVE_VAULT ?? undefined });
-const board = await createHiveServer({ kernel });
+const board = await createHiveServer({ kernel, teamsDir: join(hiveRoot, "teams") });
 const client = new DiscordClient({ token: DISCORD_BOT_TOKEN });
 const connector = new DiscordConnector({ kernel, defaultBudgetUsd: 3, log: (m) => console.log(m) }, client);
 const gateway = startDiscordGateway({ client, connector, log: (m) => console.log(m) });

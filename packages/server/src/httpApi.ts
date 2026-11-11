@@ -7,6 +7,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { HiveKernel, replayTask } from "@hive/kernel";
 import type { StoredEvent } from "@hive/kernel";
 import { listTasks } from "./views.js";
+import { registerOrgRoutes } from "./orgEditor.js";
 
 const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 
@@ -25,6 +26,8 @@ export interface HiveServerOptions {
   port?: number;
   host?: string;
   publicDir?: string;
+  /** teams/ 模板目录（提供后启用组织编辑器 API） */
+  teamsDir?: string;
 }
 
 export interface HiveServer {
@@ -84,6 +87,11 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
       const taskId = taskMatch[1];
       if (taskMatch[2]) return handleArtifacts(res, taskId);
       return handleTaskDetail(res, taskId);
+    }
+
+    // 组织编辑器 API（V1.0 表单式第一版；提供 teamsDir 才启用）
+    if (opts.teamsDir) {
+      if (registerOrgRoutes(req, res, url, path, opts.teamsDir, sendJson)) return;
     }
 
     // CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工 / ✅ 批准 / ⛔ 拒绝（V0.5）

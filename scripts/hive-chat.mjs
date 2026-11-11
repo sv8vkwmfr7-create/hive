@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+/**
+ * 蜂巢聊天统一入口：自动检测 hive/.env 里已填的通道凭据并起对应通道。
+ * 用法：node --env-file=.env scripts/hive-chat.mjs [HIVE_TEAM=real-team-ds]
+ * 三通道（填任一即可）：TELEGRAM_BOT_TOKEN（最快，@BotFather 一分钟）
+ *                      FEISHU_APP_ID/SECRET/ENCRYPT_KEY（长连接免公网）
+ *                      DISCORD_BOT_TOKEN（Developer Portal，开 MESSAGE CONTENT intent）
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { HiveKernel } from "../packages/kernel/dist/index.js";
+import { createHiveServer } from "../packages/server/dist/index.js";
+import { createAdapterResolver, startCredentialProxy } from "../packages/adapters/dist/index.js";
+import { FeishuConnector, FeishuClient, startFeishuLongConnection } from "../packages/connectors/dist/index.js";
+import { TelegramConnector, TelegramClient, startTelegramPolling } from "../packages/connectors/dist/index.js";
+import { DiscordConnector, DiscordClient, startDiscordGateway } from "../packages/connectors/dist/index.js";
+
+const scriptRoot = dirname(fileURLToPath(import.meta.url));
+const hiveRoot = join(scriptRoot, "..");
+const teamName = process.env.HIVE_TEAM ?? "real-team-ds";
+const chart = JSON.parse(readFileSync(join(hiveRoot, "teams", `${teamName}.json`), "utf8"));
+
+// 通道检测（读 process.env，凭据由 --env-file 注入，绝不打印值）
+const channels = {
+  telegram: !!process.env.TELEGRAM_BOT_TOKEN,
+  feishu: !!process.env.FEISHU_APP_ID && !!process.env.FEISHU_APP_SECRET,
+  discord: !!process.env.DISCORD_BOT_TOKEN,
+};
+const ready = Object.entries(channels).filter(([, ok]) => ok);
+if (ready.length === 0) {
+  console.error(`聊天凭据未配置——三选一填进 hive/.env 后重跑本脚本：
+
+  ① Telegram（最快，约 1 分钟）
+     Telegram 里找 @BotFather → /newbot → 拿 token
+     → hive/.env 填 TELEGRAM_BOT_TOKEN=<token>
+
+  ② 飞书（约 15 分钟）
+     open.feishu.cn 建企业自建应用（长连接模式、订阅 im.message.receive_v1、
+     权限 im:message + im:message:send_as_bot）
+     → hive/.env 填 FEISHU_APP_ID / FEISHU_APP_SECRET / FEISHU_ENCRYPT_KEY
+
+  ③ Discord（约 5 分钟）
+     discord.com/developers/applications → New Application → Bot → Reset Token
+     （开 MESSAGE CONTENT INTENT）→ 拉进服务器
+     → hive/.env 填 DISCORD_BOT_TOKEN=<token>
+
+填好后：node --env-file=.env scripts/hive-chat.mjs  → 聊天里发一句话 → 团队交付 ✅`);
+  process.exit(1);
+}
+
+const dataDir = join(hiveRoot, "data", `hive-chat-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+const adaptersDir = join(hiveRoot, "packages", "adapters", "adapters");
+const proxy = await startCredentialProxy({ adaptersDir, env: process.env });
+const workers = createAdapterResolver({ adaptersDir, proxyUrl: proxy.url, proxySecret: proxy.secret });
+const kernel = new HiveKernel({
+  dataDir,
+  chart,
+  workers,
+  vaultDir: process.env.HIVE_VAULT ?? undefined,
+});
+const board = await createHiveServer({ kernel });
+const budget = Number(process.env.FEISHU_DEFAULT_BUDGET_USD ?? 3);
+
+console.log(`\n🐝 蜂巢 · 聊天通道已就绪`);
+console.log(`   团队: ${teamName}（凭据代理 ${proxy.url}）`);
+console.log(`   看板: http://127.0.0.1:${board.port}`);
+console.log(`   通道: ${ready.map(([k]) => k).join(" + ")}`);
+console.log(`   → 在聊天里发一句话，团队自动拆解→分派→协作→互审→交付，账单落盘 ✅\n`);
+
+const log = (m) => console.log(m);
+
+// Telegram（长轮询免公网）
+if (channels.telegram) {
+  const client = new TelegramClient({ token: process.env.TELEGRAM_BOT_TOKEN });
+  const connector = new TelegramConnector({ kernel, defaultBudgetUsd: budget, log });
+  connector.attachClient(client);
+  startTelegramPolling({ client, connector, log, intervalMs: 1500 });
+  console.log("   telegram: 长轮询运行中（@你的 bot 私聊/群里发消息）");
+}
+// Discord（gateway WS 免公网）
+if (channels.discord) {
+  const client = new DiscordClient({ token: process.env.DISCORD_BOT_TOKEN });
+  const connector = new DiscordConnector({ kernel, defaultBudgetUsd: budget, log }, client);
+  startDiscordGateway({ client, connector, log });
+  console.log("   discord: gateway 运行中（频道里发消息）");
+}
+// 飞书（官方 SDK 长连接免公网）
+if (channels.feishu) {
+  const client = new FeishuClient({
+    appId: process.env.FEISHU_APP_ID,
+    appSecret: process.env.FEISHU_APP_SECRET,
+  });
+  const connector = new FeishuConnector({
+    kernel,
+    client,
+    encryptKey: process.env.FEISHU_ENCRYPT_KEY,
+    defaultBudgetUsd: budget,
+    log,
+  });
+  await startFeishuLongConnection({
+    appId: process.env.FEISHU_APP_ID,
+    appSecret: process.env.FEISHU_APP_SECRET,
+    onEvent: (event) => connector.handleEventObject(event),
+    log,
+  });
+  console.log("   feishu: 长连接运行中（群里 @机器人 发消息）");
+}
+// 支持多通道并存：同一内核，谁发的话都建任务（source 前缀区分来源）
+setInterval(() => {}, 1 << 30);

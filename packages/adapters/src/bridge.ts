@@ -63,7 +63,18 @@ export async function runBridge(pack: TaskPack, contract: AdapterContract): Prom
   });
 
   // 引擎的最终文本应是一个协议 JSON；解析失败按契约处理（fail=诚实退出，text_output=纯文本交付）
-  const protocol = extractJson(finalText);
+  let protocol = extractJson(finalText);
+  if (!protocol && contract.on_unparseable === "fail" && contract.mode === "openai_chat") {
+    // 解析重试（仅一次）：引擎偶发输出非协议 JSON（前缀闲话/码块变体）——重调一次往往即合规
+    process.stderr.write(`回复解析失败，重试一次…\n`);
+    const r2 = await callOpenAiChat(contract, prompt);
+    if (r2.finalText) say({ type: "output", chunk: clip(r2.finalText) });
+    tokensIn = (tokensIn ?? 0) + (r2.tokensIn ?? 0);
+    tokensOut = (tokensOut ?? 0) + (r2.tokensOut ?? 0);
+    usageSource = r2.usageSource;
+    protocol = extractJson(r2.finalText);
+    if (protocol) finalText = r2.finalText;
+  }
   if (!protocol) {
     if (contract.on_unparseable === "text_output") {
       say({ type: "output", chunk: clip(finalText || "（引擎无输出）") });

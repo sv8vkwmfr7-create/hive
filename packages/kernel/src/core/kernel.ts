@@ -52,6 +52,8 @@ export interface RunResult {
 interface QueueItem {
   botId: string;
   instruction?: string;
+  /** handoff 缺失重试门：true = 本轮是漏交棒后的自动重派，不再重试 */
+  handoffRetry?: boolean;
 }
 
 interface PriorArtifact {
@@ -257,6 +259,15 @@ export class HiveKernel {
           pendingApproval = a;
         },
       );
+      if (outcome === "handoff-retry") {
+        // 合规率门重派：同一蜂带 handoffRetry 标记重跑，prompt 强调必须交棒
+        queue.unshift({ botId: item.botId, instruction: item.instruction, handoffRetry: true });
+        this.emit(taskId, "kernel", "error.reported", {
+          message: `bot ${item.botId} 漏 handoff（未交棒）——合规率门自动重派一次`,
+          byBot: item.botId,
+        });
+        continue;
+      }
       if (outcome === "approval") {
         // 审批门：当前蜂排回队首，批准后带 approvals 重跑；拒绝则任务失败
         queue.unshift(item);
@@ -314,7 +325,7 @@ export class HiveKernel {
     enqueue: (next: QueueItem) => void,
     onFail: (reason: string) => void,
     onApproval: (a: { action: string; risk: string }) => void,
-  ): Promise<"ok" | "paused" | "failed" | "approval"> {
+  ): Promise<"ok" | "paused" | "failed" | "approval" | "handoff-retry"> {
     const role = this.opts.chart.roles.find((r) => r.id === item.botId)!;
 
     // 门禁 1：预算预检
@@ -359,6 +370,8 @@ export class HiveKernel {
     };
 
     let askedApproval: string | undefined;
+    // 合规率门：本轮运行是否发出过 handoff（specialist 漏交棒 → 重试门）
+    let handoffEmitted = false;
     const res = await runBot({
       workerPath: spec.workerPath,
       args: spec.args,
@@ -381,6 +394,8 @@ export class HiveKernel {
         approvals: this.grantedActions(taskId),
         // 角色护栏：哪些动作需要 CEO 审批（提示词讲规矩，强制在审批门）
         needsApprovalFor: role.guards?.needs_approval_for ?? [],
+        // 重派标记：提示词会强调本轮必须交棒
+        handoffRetry: item.handoffRetry === true,
       },
       onMsg: (m: BotMsg) => {
         switch (m.type) {
@@ -400,6 +415,7 @@ export class HiveKernel {
               return;
             }
             this.emit(taskId, role.id, "handoff.created", { from: role.id, to: m.to, note: note.data });
+            handoffEmitted = true;
             enqueue({ botId: m.to });
             return;
           }
@@ -465,7 +481,7 @@ export class HiveKernel {
       },
     });
 
-    // 收尾裁决：协议失败 > 进程退出码；任一命中即如实失败（不重试到谎报成功）
+    // 收尾裁决：协议失败 > 进程退出码 > 合规率门（漏交棒重试）> 预算后检；任一命中即如实处置
     if (failure) {
       onFail(failure);
       return "failed";
@@ -477,6 +493,15 @@ export class HiveKernel {
       return "failed";
     }
     if (askedApproval) return "approval";
+
+    // 合规率门：专业岗漏交棒（有出边、本轮没发 handoff、非重试轮）→ 返回重派信号
+    // 无人干预完成率 ≥80% 指标的内核手段：引擎偶发漏交棒不再导致整单失败
+    const hasOutbound = this.opts.chart.handoffs.some((h) => h.from === role.id);
+    if (role.kind === "specialist" && hasOutbound && !handoffEmitted && !item.handoffRetry) {
+      this.emit(taskId, "kernel", "bot.exited", { botId: role.id, code: 0 });
+      return "handoff-retry";
+    }
+
     this.emit(taskId, "kernel", "bot.exited", { botId: role.id, code: 0 });
 
     // 门禁 6：预算后检（本轮实际花费可能超任务预算 → 熔断暂停，不硬烧）

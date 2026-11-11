@@ -34,6 +34,13 @@ function artifact(name, title, body) {
 
 async function main() {
   await sleep(60);
+  // 合规率重派测试：HIVE_MOCK_SKIP_HANDOFF=1 且非重派轮 → specialist 漏交棒（内核重派门再派一次）
+  if (process.env.HIVE_MOCK_SKIP_HANDOFF === '1' && role !== 'orchestrator' && role !== 'reviewer' && !input.handoffRetry && handoffTarget) {
+    say({ type: 'output', chunk: '产出完成（本轮故意漏交棒，测合规率门）' });
+    say({ type: 'artifact', path: artifact('漏交棒产出', '任务产出', '## 产出\n\n（漏交棒轮产出）\n'), kind: 'output' });
+    say({ type: 'usage', ...usage });
+    process.exit(0);
+  }
   if (role === "orchestrator") {
     say({ type: "output", chunk: `拆解「${instruction}」：① 专业岗产出 → ② 独立审核` });
     await sleep(60);
@@ -74,6 +81,13 @@ async function main() {
     process.exit(0);
   }
   // 通用专业岗（任意 botId，含导入团队）：产出 artifact + 按派单链交棒
+  // 合规率重派测试：HIVE_MOCK_SKIP_HANDOFF=1 且非重派轮 → 漏交棒（内核重派门会再派一次）
+  if (process.env.HIVE_MOCK_SKIP_HANDOFF === "1" && !input.handoffRetry && handoffTarget) {
+    say({ type: "output", chunk: "产出完成（本轮故意漏交棒，测合规率门）" });
+    say({ type: "artifact", path: artifact("漏交棒产出", "任务产出", "## 产出\n\n（漏交棒轮产出）\n"), kind: "output" });
+    say({ type: "usage", ...usage });
+    process.exit(0);
+  }
   say({ type: "output", chunk: `处理指令：${instruction || "（无）"}` });
   const p = artifact("产出", "任务产出", `## 产出\n\n基于指令「${instruction || "（无）"}」的专业产出（mock）。\n`);
   await sleep(60);

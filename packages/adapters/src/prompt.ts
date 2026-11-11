@@ -16,6 +16,8 @@ export interface TaskPack {
   approvals?: string[];
   /** 角色护栏：执行这些高风险动作前必须先在回复里请求审批（内核挂起等 CEO） */
   needsApprovalFor?: string[];
+  /** 合规率门重派：true = 上一轮漏了 handoff，本轮必须交棒 */
+  handoffRetry?: boolean;
 }
 
 const MAX_ARTIFACT_CHARS = 4000;
@@ -93,6 +95,9 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
       : `\n团队知识库（共享大脑）当前为空：你交付的产物会自动落库，成为团队的长期资产`,
     pack.approvals?.length
       ? `\n已获 CEO 批准、可直接执行的动作（无需再请求审批）：${pack.approvals.join("、")}`
+      : "",
+    pack.handoffRetry
+      ? `\n⚠️ 重派提醒：你上一轮产出后漏了 handoff 交棒——本轮回复必须带 handoff 字段（无合法交接目标才可省略），否则任务将如实失败`
       : "",
     pack.needsApprovalFor?.length
       ? `\n高风险动作审批门：以下动作执行前必须先在回复 JSON 中加 "approval": {"action": "<动作名>", "risk": "high"}——内核会挂起任务等 CEO 批准，批准后你会带着批准清单重跑：${pack.needsApprovalFor.join("、")}`

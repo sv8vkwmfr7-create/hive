@@ -11,6 +11,10 @@ export interface AdapterResolverOptions {
   adaptersDir: string;
   /** 额外环境变量（凭据代理注入点；api 契约的 env_key 从 process.env 透传） */
   env?: Record<string, string>;
+  /** 凭据代理（V1.0 加固）：设置后 api 引擎改调本地代理，真 key 不进 worker 进程 */
+  proxyUrl?: string;
+  /** 代理会话密钥（与 startCredentialProxy().secret 配对） */
+  proxySecret?: string;
 }
 
 export type AdapterResolver = (adapterId: string) => WorkerSpec | null;
@@ -34,10 +38,15 @@ export function createAdapterResolver(opts: AdapterResolverOptions): AdapterReso
         return null;
       }
       const env: Record<string, string> = { ...opts.env };
+      const viaProxy = !!opts.proxyUrl && contract.kind === "api";
       if (contract.kind === "api" && contract.env_key) {
-        env[contract.env_key] = process.env[contract.env_key] ?? "";
+        // 代理模式：worker 只拿占位 key；真 key 由内核侧凭据代理注入
+        env[contract.env_key] = viaProxy ? "hive-proxy" : (process.env[contract.env_key] ?? "");
       }
-      return { workerPath: BRIDGE_WORKER, args: [file], env };
+      if (viaProxy) env.HIVE_PROXY_SECRET = opts.proxySecret ?? "";
+      const args = [file];
+      if (viaProxy) args.push("--via-proxy", opts.proxyUrl!);
+      return { workerPath: BRIDGE_WORKER, args, env };
     },
     { contracts },
   );

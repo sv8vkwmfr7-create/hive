@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import { HiveKernel } from "@hive/kernel";
 import { createHiveServer } from "@hive/server";
-import { createAdapterResolver } from "@hive/adapters";
+import { createAdapterResolver, startCredentialProxy } from "@hive/adapters";
 import { FeishuConnector, FeishuClient } from "../dist/index.js";
 
 const { FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_ENCRYPT_KEY, FEISHU_WEBHOOK_ONLY } = process.env;
@@ -33,7 +33,8 @@ const dataDir = join(connectorRoot, "data", `feishu-demo-${new Date().toISOStrin
 
 // 真引擎团队（HIVE_TEAM=real-team）经适配器解析器接入；mock 团队走内置 mock worker。
 // 凭据经 --env-file 进入 process.env，resolver 透传给桥接进程（凭据代理：不落盘不进 prompt）。
-const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters") });
+const proxy = await startCredentialProxy({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), env: process.env });
+const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), proxyUrl: proxy.url, proxySecret: proxy.secret });
 // 共享大脑：设 HIVE_VAULT=<vault 目录> → 任务 PASS 后交付摘要自动落库（Obsidian）
 const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir: process.env.HIVE_VAULT ?? undefined });
 const board = await createHiveServer({ kernel });

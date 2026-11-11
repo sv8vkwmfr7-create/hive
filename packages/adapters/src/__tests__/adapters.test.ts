@@ -10,10 +10,11 @@ import type { AddressInfo } from "node:net";
 
 import { HiveKernel, replayTask } from "@hive/kernel";
 import type { TeamChart } from "@hive/shared";
-import { loadAdapter, getPath, buildPrompt, extractJson, createAdapterResolver } from "../index.js";
+import { loadAdapter, getPath, buildPrompt, extractJson, createAdapterResolver, startCredentialProxy } from "../index.js";
 import type { TaskPack, ProtocolMsg } from "../index.js";
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const mockChart = JSON.parse(readFileSync(join(pkgRoot, "..", "..", "teams", "mock-team.json"), "utf8")) as unknown as TeamChart;
 const fixturesDir = join(pkgRoot, "fixtures");
 const realAdaptersDir = join(pkgRoot, "adapters");
 
@@ -403,4 +404,133 @@ test("适配器注册表 ≥10：全部契约过 schema；本地引擎免 key；
   const ollama = loadAdapter(join(dir, "ollama.json"));
   assert.equal(ollama.kind, "local", "ollama 是本地系");
   assert.equal(ollama.env_key, undefined, "本地引擎免 key");
+});
+
+test("凭据代理 v1：真 key 只在内核进程——代理注入 Authorization，worker env 无真 key", async () => {
+  // 1. 假上游：记录收到的 Authorization 头
+  let seenAuth = "";
+  let seenBody = "";
+  const upstream = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c: string) => (body += c));
+    req.on("end", () => {
+      seenAuth = req.headers.authorization ?? "";
+      seenBody = body;
+      const prompt = "";
+      let replyContent: Record<string, unknown> = { say: "经由代理完成" };
+      try {
+        const p = String(JSON.parse(body).messages?.[0]?.content ?? "");
+        if (p.includes("角色类型：orchestrator")) {
+          replyContent = { say: "派单", handoff: { to: "reviewer", note: { reason: "送审", progress: "v1", ask: "独立审核" } } };
+        } else {
+          replyContent = { say: "审核通过", verdict: { verdict: "PASS", evidence: "产物完整" } };
+        }
+      } catch {}
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(replyContent) } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }),
+      );
+    });
+  });
+  await new Promise<void>((res) => upstream.listen(0, "127.0.0.1", res));
+  const upstreamPort = (upstream.address() as AddressInfo).port;
+
+  // 2. 临时契约（指向假上游）+ 内核 env 里放真 key（模拟内核进程持有凭据）
+  const dir = mkdtempSync(join(tmpdir(), "hive-proxy-contracts-"));
+  writeFileSync(
+    join(dir, "secret-api.json"),
+    JSON.stringify({
+      adapter: "secret-api",
+      kind: "api",
+      mode: "openai_chat",
+      contract_version: 1,
+      base_url: `http://127.0.0.1:${upstreamPort}/v1`,
+      model: "secret-chat",
+      env_key: "SECRET_API_KEY",
+      usage_parse: { tokens_in: "$.usage.prompt_tokens", tokens_out: "$.usage.completion_tokens" },
+      pricing: { input_per_mtok: 1, output_per_mtok: 2 },
+      on_unparseable: "fail",
+      timeout_ms: 30000,
+    }),
+  );
+  const REAL_KEY = "sk-real-key-DO-NOT-LEAK";
+  process.env.SECRET_API_KEY = REAL_KEY;
+
+  // 3. 启凭据代理 + 带 proxy 的 resolver
+  const proxy = await startCredentialProxy({ adaptersDir: dir, env: process.env });
+  const resolver = createAdapterResolver({ adaptersDir: dir, proxyUrl: proxy.url, proxySecret: proxy.secret });
+  const proxyChart = {
+    schema_version: 1,
+    team: 'proxy-e2e',
+    roles: [
+      { id: 'chief', name: '总管', kind: 'orchestrator', engine: { type: 'api', adapter: 'secret-api' }, profile: 'profiles/p.md', guards: { can_initiate_mention: true } },
+      { id: 'reviewer', name: '审核员', kind: 'reviewer', engine: { type: 'api', adapter: 'secret-api' }, profile: 'profiles/p.md', guards: { can_initiate_mention: false } },
+    ],
+    handoffs: [{ from: 'chief', to: 'reviewer', when: '产出后送审' }],
+  } as unknown as TeamChart;
+  const kernel = new HiveKernel({ dataDir: mkdtempSync(join(tmpdir(), 'hive-proxy-data-')), chart: proxyChart, workers: resolver });
+  process.env.FAKE_API_KEY = "offline-fake";
+  try {
+    // worker env 不含真 key、含代理参数
+    const spec = resolver("secret-api");
+    assert.ok(spec, "secret-api 契约应可解析");
+    assert.equal(spec!.env!.SECRET_API_KEY, "hive-proxy", "worker 只拿占位 key");
+    assert.equal(spec!.env!.SECRET_API_KEY?.includes(REAL_KEY), false);
+    assert.equal(spec!.env!.HIVE_PROXY_SECRET, proxy.secret, "worker 拿会话密钥");
+    assert.equal(spec!.args![1], "--via-proxy", "worker 拿代理标志");
+    assert.equal(spec!.args![2], proxy.url, "worker 拿代理地址");
+
+    const taskId = kernel.createTask({ title: "凭据代理", brief: "key 不出内核", budgetUsd: 5 });
+    const res = await kernel.runTask(taskId);
+    assert.equal(res.status, "ok", `经代理应跑通：${res.reason ?? ""}`);
+    assert.equal(seenAuth, `Bearer ${REAL_KEY}`, "代理应向上游注入真 key");
+    assert.ok(seenBody.includes("brief") || seenBody.length > 10, "请求体应透传（含任务包内容）");
+    assert.ok(proxy.forwarded >= 2, "chief+reviewer 两次请求都经代理");
+    // 事件流审计：无真 key 泄漏
+    const raw = readFileSync(join(kernel.dataDir, "events.jsonl"), "utf8");
+    assert.equal(raw.includes(REAL_KEY), false, "事件流不得出现真 key");
+  } finally {
+    delete process.env.SECRET_API_KEY;
+    delete process.env.FAKE_API_KEY;
+    await proxy.close();
+    upstream.close();
+  }
+});
+
+test("凭据代理 v1：缺会话密钥 → 403；未知 adapter → 404", async () => {
+  const upstream = createServer((_req, res) => {
+    res.writeHead(200);
+    res.end("{}");
+  });
+  await new Promise<void>((res) => upstream.listen(0, "127.0.0.1", res));
+  const dir = mkdtempSync(join(tmpdir(), "hive-proxy-sec-"));
+  writeFileSync(
+    join(dir, "secret-api.json"),
+    JSON.stringify({
+      adapter: "secret-api", kind: "api", mode: "openai_chat", contract_version: 1,
+      base_url: "http://127.0.0.1:1/v1", model: "m", env_key: "SECRET_API_KEY",
+      usage_parse: { tokens_in: "$.usage.prompt_tokens", tokens_out: "$.usage.completion_tokens" },
+      pricing: { input_per_mtok: 1, output_per_mtok: 2 }, on_unparseable: "fail", timeout_ms: 5000,
+    }),
+  );
+  const proxy = await startCredentialProxy({ adaptersDir: dir, env: { SECRET_API_KEY: "sk-x" } });
+  try {
+    const base = `http://127.0.0.1:${proxy.port}`;
+    const noSecret = await fetch(`${base}/secret-api/v1/chat/completions`, { method: "POST", body: "{}" });
+    assert.equal(noSecret.status, 403, "缺会话密钥应 403");
+    const badSecret = await fetch(`${base}/secret-api/v1/chat/completions`, {
+      method: "POST", headers: { "x-hive-proxy-secret": "wrong" }, body: "{}",
+    });
+    assert.equal(badSecret.status, 403, "错密钥应 403");
+    const unknown = await fetch(`${base}/nope/v1/chat/completions`, {
+      method: "POST", headers: { "x-hive-proxy-secret": proxy.secret }, body: "{}",
+    });
+    assert.equal(unknown.status, 404, "未知 adapter 应 404");
+  } finally {
+    await proxy.close();
+    upstream.close();
+  }
 });

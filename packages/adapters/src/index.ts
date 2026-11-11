@@ -7,3 +7,5 @@ export { runBridge, extractJson, BridgeError } from "./bridge.js";
 export type { ProtocolMsg, BridgeResult } from "./bridge.js";
 export { createAdapterResolver } from "./resolver.js";
 export type { AdapterResolver, AdapterResolverOptions } from "./resolver.js";
+export { startCredentialProxy } from "./credentialProxy.js";
+export type { CredentialProxy, CredentialProxyOptions } from "./credentialProxy.js";

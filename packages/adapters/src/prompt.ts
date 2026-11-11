@@ -48,11 +48,16 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
     })
     .join("\n");
 
+  // approval 字段只对真正带审批门的 bot 展示——否则 T1 模型会把任何动作都当高风险乱发审批请求
+  const hasApprovalGate = !!pack.needsApprovalFor?.length;
+  const approvalField = hasApprovalGate
+    ? `, "approval": {"action": "<需要审批的动作名，见上方审批门清单>", "risk": "high"}`
+    : "";
   const replyShape = isReviewer
-    ? `{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}, "approval": {"action": "<动作>", "risk": "high"}} 或省略 approval}`
+    ? `{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}${approvalField}}`
     : isChief
       ? `{"say": "给用户的简短进展说明", "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}}}`
-      : `{"say": "给用户的简短进展说明", "artifact": {"filename": "名字.md", "content": "全文"}, "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}} 或无下一棒时省略 handoff, "approval": {"action": "<动作>", "risk": "high"}} 或省略 approval}`;
+      : `{"say": "给用户的简短进展说明", "artifact": {"filename": "名字.md", "content": "全文"}, "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}}${approvalField} 或无下一棒时省略 handoff}`;
 
   const roleRules = isReviewer
     ? [`- 你是独立审核员：只出 PASS / BLOCK（必须带证据）/ HOLD，绝不替生产者改稿，也不产出任何文件`]

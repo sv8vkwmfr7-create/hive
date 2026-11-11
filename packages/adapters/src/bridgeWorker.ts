@@ -6,12 +6,16 @@ import type { TaskPack } from "./prompt.js";
 
 /**
  * 桥接 worker 入口：kernel spawn 本文件，argv[2] = 契约文件路径，stdin = 任务包。
+ * 可选 argv：--via-proxy <url>（凭据代理模式：改调本地代理，真 key 不进本进程）。
  * 由 @hive/adapters 的 resolver 生成 WorkerSpec；kernel 只见统一的行协议。
  */
 async function main(): Promise<void> {
-  const contractPath = process.argv[2];
+  const argv = process.argv.slice(2);
+  const viaProxyIdx = argv.indexOf("--via-proxy");
+  const proxyUrl = viaProxyIdx >= 0 ? argv[viaProxyIdx + 1] : undefined;
+  const contractPath = argv[0];
   if (!contractPath) {
-    process.stderr.write("用法：node bridgeWorker.js <adapter.json>（任务包从 stdin 读）\n");
+    process.stderr.write("用法：node bridgeWorker.js <adapter.json> [--via-proxy <proxyUrl>]\n");
     process.exit(2);
   }
   let contract;
@@ -20,6 +24,10 @@ async function main(): Promise<void> {
   } catch (e) {
     process.stderr.write(String(e instanceof Error ? e.message : e) + "\n");
     process.exit(2);
+  }
+  if (proxyUrl && contract.kind === "api") {
+    // 凭据代理模式：上游改为 <proxy>/<adapterId>/…；占位 key 经 authorization 头送出（代理校验会话密钥）
+    contract = { ...contract, base_url: `${proxyUrl.replace(/\/$/, "")}/${contract.adapter}` };
   }
   let pack: TaskPack;
   try {

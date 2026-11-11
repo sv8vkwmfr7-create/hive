@@ -242,6 +242,8 @@ async function callOpenAiChat(contract: AdapterContract, prompt: string): Promis
   try {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (contract.env_key) headers.authorization = `Bearer ${key}`;
+    // 凭据代理模式：会话密钥随请求头走（真 key 由代理注入，worker 永远摸不到）
+    if (process.env.HIVE_PROXY_SECRET) headers["x-hive-proxy-secret"] = process.env.HIVE_PROXY_SECRET;
     const res = await fetch(`${contract.base_url!.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers,

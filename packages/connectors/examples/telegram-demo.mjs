@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { HiveKernel } from "@hive/kernel";
 import { createHiveServer } from "@hive/server";
-import { createAdapterResolver } from "@hive/adapters";
+import { createAdapterResolver, startCredentialProxy } from "@hive/adapters";
 import { TelegramConnector, TelegramClient, startTelegramPolling } from "../dist/index.js";
 
 const { TELEGRAM_BOT_TOKEN, HIVE_TEAM, TELEGRAM_API_BASE } = process.env;
@@ -29,7 +29,8 @@ const hiveRoot = join(connectorRoot, "..", "..");
 const chart = JSON.parse(readFileSync(join(hiveRoot, "teams", `${HIVE_TEAM ?? "mock-team"}.json`), "utf8"));
 const dataDir = join(connectorRoot, "data", `tg-demo-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 
-const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters") });
+const proxy = await startCredentialProxy({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), env: process.env });
+const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters"), proxyUrl: proxy.url, proxySecret: proxy.secret });
 const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir: process.env.HIVE_VAULT ?? undefined });
 const board = await createHiveServer({ kernel });
 const client = new TelegramClient({ token: TELEGRAM_BOT_TOKEN, baseUrl: TELEGRAM_API_BASE });

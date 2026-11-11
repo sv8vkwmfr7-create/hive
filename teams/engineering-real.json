@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "team": "engineering-real",
+  "roles": [
+    {
+      "id": "engineering-manager",
+      "name": "Engineering Manager",
+      "kind": "orchestrator",
+      "engine": {
+        "type": "api",
+        "adapter": "deepseek",
+        "model": "deepseek-chat"
+      },
+      "profile": "profiles/导入.md",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": true,
+        "daily_budget_usd": 2
+      },
+      "summary": "Coordinates the engineering team.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "engineer",
+      "name": "Engineer",
+      "kind": "specialist",
+      "engine": {
+        "type": "api",
+        "adapter": "qwen",
+        "model": "qwen-plus"
+      },
+      "profile": "profiles/导入.md",
+      "reports_to": "engineering-manager",
+      "in_scope": [],
+      "out_of_scope": [],
+      "guards": {
+        "can_initiate_mention": false,
+        "daily_budget_usd": 2
+      },
+      "summary": "Technical execution and code.",
+      "persona": "",
+      "required": true
+    },
+    {
+      "id": "reviewer",
+      "name": "审核员（导入补充）",
+      "kind": "reviewer",
+      "engine": {
+        "type": "api",
+        "adapter": "deepseek",
+        "model": "deepseek-chat"
+      },
+      "profile": "profiles/导入.md",
+      "guards": {
+        "can_initiate_mention": false,
+        "daily_budget_usd": 2
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "engineering-manager",
+      "to": "engineer",
+      "when": "agent-org-chart reports_to 树导入"
+    },
+    {
+      "from": "engineer",
+      "to": "reviewer",
+      "when": "产出完成后送独立审核（导入补充）"
+    }
+  ],
+  "channels": {},
+  "spawn": {
+    "prefer_current_agent_as": "engineering-manager",
+    "reuse_matching_by_name": true,
+    "do_not_fanout_until_first_goal": true,
+    "secrets": "vault_only"
+  },
+  "id": "engineering",
+  "title": "Engineering",
+  "summary": "Engineering team from Galaxy Day 1 livestream Meet the team slide.",
+  "version": "3.0.0",
+  "tags": [
+    "engineering"
+  ],
+  "sources": [
+    "https://x.com/i/broadcasts/1AxRnZbVpjaxl"
+  ],
+  "principles": [],
+  "_comment": "社区 engineering chart 换真引擎抽检版（原版 teams/engineering.json 保留 mock）"
+}

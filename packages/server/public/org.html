@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>蜂巢组织编辑器 · Hive Org Editor</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    #org-canvas { overflow: auto; }
+    #org-canvas svg { display: block; user-select: none; }
+    .cell { cursor: grab; }
+    .cell.sel polygon { stroke: var(--accent); stroke-width: 3; }
+    #handoffs-pane { margin-top: 10px; }
+    #handoffs-pane table { border-collapse: collapse; width: 100%; }
+    #handoffs-pane td, #handoffs-pane th { border: 1px solid var(--line, #2a2f3a); padding: 4px 8px; font-size: 12px; text-align: left; }
+    #role-form { margin-top: 10px; border-top: 1px solid var(--line, #2a2f3a); padding-top: 8px; }
+    #role-form label { display: inline-block; min-width: 130px; color: #7d838e; font-size: 12px; }
+    #role-form .row { margin: 4px 0; }
+    #role-form input, #role-form select {
+      background: #20242b; color: #d7dae0; border: 1px solid #3a4150;
+      border-radius: 4px; padding: 3px 6px; font-size: 12px;
+    }
+    #tpl-list .tpl { cursor: pointer; padding: 6px 8px; border-radius: 6px; font-size: 13px; }
+    #tpl-list .tpl:hover { background: #262b33; }
+    #tpl-list .tpl.sel { background: #2c313a; outline: 1px solid var(--accent); }
+    #tpl-list .bad { color: #e5484d; }
+    #tpl-list .ok { color: #4caf7d; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔧 组织编辑器</h1>
+    <span id="editor-status" class="dim">组织即配置：拖拽蜂房 · 表单改属性 · 保存即校验</span>
+    <a href="/" style="margin-left:auto;color:var(--accent);text-decoration:none">🗺 返回看板</a>
+  </header>
+
+  <main>
+    <aside id="tpl-list" aria-label="模板列表">
+      <div class="dim" style="padding:4px 8px">团队模板（teams/*.json）</div>
+      <div id="tpl-items" class="dim">加载中…</div>
+      <button id="btn-new" style="margin:8px">＋ 新建团队</button>
+    </aside>
+
+    <section id="editor">
+      <div id="editor-bar">
+        <b id="cur-name">（未选择模板）</b>
+        <button id="btn-save" disabled>💾 保存</button>
+        <button id="btn-add-role" disabled>＋ 加蜂房</button>
+        <span id="save-msg" class="dim"></span>
+      </div>
+      <div id="org-canvas" class="dim">← 在左侧选一个团队模板开始编辑</div>
+      <div id="handoffs-pane" hidden></div>
+      <div id="role-form" hidden></div>
+    </section>
+  </main>
+
+  <script src="/org.js"></script>
+</body>
+</html>

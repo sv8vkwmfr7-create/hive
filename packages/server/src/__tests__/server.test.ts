@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -216,6 +216,52 @@ test("审批门 API：detail 暴露 pendingApproval，approve 放行，错误如
     assert.equal(kernel.pendingApproval(taskId), null);
   } finally {
     delete process.env.HIVE_MOCK_APPROVAL;
+    await server.close();
+  }
+});
+
+test("org engines 路由：引擎注册表 + key 就绪度如实标注（换脑数据源）", async () => {
+  const adaptersDir = mkdtempSync(join(tmpdir(), "hive-engines-"));
+  writeFileSync(
+    join(adaptersDir, "fake-engine.json"),
+    JSON.stringify({
+      adapter: "fake-engine",
+      kind: "api",
+      mode: "openai_chat",
+      contract_version: 1,
+      base_url: "http://127.0.0.1:9/v1",
+      model: "fake-chat",
+      env_key: "FAKE_ENGINE_KEY",
+      usage_parse: { tokens_in: "$.usage.prompt_tokens", tokens_out: "$.usage.completion_tokens" },
+      pricing: { input_per_mtok: 1, output_per_mtok: 2 },
+      on_unparseable: "fail",
+      timeout_ms: 30000,
+    }),
+  );
+  writeFileSync(join(adaptersDir, "broken.json"), "{ 坏 json");
+  const teamsDir = mkdtempSync(join(tmpdir(), "hive-org-teams-"));
+  writeFileSync(join(teamsDir, "t.json"), JSON.stringify(chart));
+  const kernel = new HiveKernel({ dataDir: mkdtempSync(join(tmpdir(), "hive-eng-kernel-")), chart });
+  const server = await createHiveServer({ kernel, teamsDir, adaptersDir });
+  const base = `http://127.0.0.1:${server.port}`;
+  const enginesOf = async () =>
+    ((await (await fetch(`${base}/api/org/engines`)).json()) as {
+      engines: Array<{ adapter: string; keyReady: boolean | null }>;
+      broken: string[];
+    });
+  try {
+    delete process.env.FAKE_ENGINE_KEY;
+    const r1 = await enginesOf();
+    const fe = r1.engines.find((e) => e.adapter === "fake-engine");
+    assert.ok(fe, "注册表应含 fake-engine");
+    assert.equal(fe.keyReady, false, "api 引擎无 key 应如实标 false");
+    assert.equal(r1.broken.length, 1, "坏契约应如实报告，不粉饰");
+
+    process.env.FAKE_ENGINE_KEY = "now-ready";
+    const r2 = await enginesOf();
+    assert.equal(r2.engines.find((e) => e.adapter === "fake-engine")?.keyReady, true, "key 到位应如实标 true");
+  } finally {
+    delete process.env.FAKE_ENGINE_KEY;
     await server.close();
   }
 });

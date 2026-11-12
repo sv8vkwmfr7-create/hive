@@ -28,6 +28,8 @@ export interface HiveServerOptions {
   publicDir?: string;
   /** teams/ 模板目录（提供后启用组织编辑器 API） */
   teamsDir?: string;
+  /** adapters/ 引擎契约目录（提供后 /api/org/engines 可用，换脑下拉数据源） */
+  adaptersDir?: string;
 }
 
 export interface HiveServer {
@@ -91,7 +93,7 @@ export async function createHiveServer(opts: HiveServerOptions): Promise<HiveSer
 
     // 组织编辑器 API（V1.0 表单式第一版；提供 teamsDir 才启用）
     if (opts.teamsDir) {
-      if (registerOrgRoutes(req, res, url, path, opts.teamsDir, sendJson)) return;
+      if (registerOrgRoutes(req, res, url, path, opts.teamsDir, sendJson, opts.adaptersDir)) return;
     }
 
     // CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工 / ✅ 批准 / ⛔ 拒绝（V0.5）

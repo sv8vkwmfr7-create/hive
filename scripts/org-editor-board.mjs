@@ -19,6 +19,6 @@ const chart = JSON.parse(readFileSync(join(hiveRoot, "teams", `${teamName}.json`
 const workers = createAdapterResolver({ adaptersDir: join(hiveRoot, "packages", "adapters", "adapters") });
 const dataDir = join(hiveRoot, "data", `org-editor-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 const kernel = new HiveKernel({ dataDir, chart, workers });
-const board = await createHiveServer({ kernel, teamsDir: join(hiveRoot, "teams") });
+const board = await createHiveServer({ kernel, teamsDir: join(hiveRoot, "teams"), adaptersDir: join(hiveRoot, "packages", "adapters", "adapters") });
 
 console.log(`\n🔧 组织编辑器验收看板：http://127.0.0.1:${board.port}/org.html（团队=${teamName}）\n`);

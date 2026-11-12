@@ -8,6 +8,7 @@ const state = {
   pos: {}, // sessionId 内的画布坐标，不持久化
   sel: null, // 选中的角色 id
   dirty: false,
+  engines: [], // 引擎注册表（/api/org/engines），换脑下拉与就绪度提示的数据源
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -38,6 +39,25 @@ function markDirty() {
 
 const ADAPTERS = ["deepseek", "qwen", "moonshot", "openrouter", "doubao", "zhipu", "siliconflow", "groq", "kaitian", "ollama", "mock"];
 const APPROVAL_ACTIONS = ["send_external", "spend", "merge", "deploy"];
+
+/* ---------- 引擎注册表（换脑数据源）：失败回退到静态清单，不阻塞编辑器 ---------- */
+async function loadEngines() {
+  try {
+    const { engines } = await api("/api/org/engines");
+    state.engines = engines;
+  } catch {
+    state.engines = ADAPTERS.map((a) => ({ adapter: a, kind: "unknown", keyReady: null }));
+  }
+}
+
+function adapterHint(adapterId) {
+  if (adapterId === "mock") return "🧩 内核内置 mock 引擎（流水线兜底，无契约属正常）";
+  const e = (state.engines ?? []).find((x) => x.adapter === adapterId);
+  if (!e) return "⚠️ 注册表无此引擎（契约缺失时内核会诚实拒绝）";
+  if (e.kind === "api") return e.keyReady ? "✅ key 就绪" : `⏳ 等 key（${e.envKey ?? "?"}），运行会诚实失败`;
+  if (e.kind === "local") return "🖥 本地推理，免 key";
+  return "🖥 本机 CLI 运行时";
+}
 
 /* ---------- 模板列表 ---------- */
 async function loadTemplates() {
@@ -230,7 +250,8 @@ function renderRoleForm() {
     `<div class="row"><label>引擎类型</label><select id="f-etype">` +
     ["cli", "api", "local"].map((k) => `<option value="${k}"${r.engine.type === k ? " selected" : ""}>${k}</option>`).join("") +
     `</select> <label>adapter</label><input id="f-adapter" list="adapter-list" value="${escapeHtml(r.engine.adapter)}" />` +
-    `<datalist id="adapter-list">${ADAPTERS.map((a) => `<option value="${a}">`).join("")}</datalist>` +
+    `<datalist id="adapter-list">${(state.engines ?? ADAPTERS.map((a) => ({ adapter: a }))).map((e) => `<option value="${escapeHtml(e.adapter)}">`).join("")}</datalist>` +
+    ` <span id="adapter-hint" class="dim">${escapeHtml(adapterHint(r.engine.adapter))}</span>` +
     ` <label>model</label><input id="f-model" value="${escapeHtml(r.engine.model ?? "")}" placeholder="留空 = 契约默认" /></div>` +
     `<div class="row"><label>profile</label><input id="f-profile" value="${escapeHtml(r.profile)}" /></div>` +
     `<div class="row"><label>可发起 @</label><input id="f-mention" type="checkbox"${g.can_initiate_mention ? " checked" : ""} />` +
@@ -278,6 +299,7 @@ function renderRoleForm() {
   };
   $("#f-adapter").onchange = (e) => {
     r.engine.adapter = e.target.value.trim() || "mock";
+    $("#adapter-hint").textContent = adapterHint(r.engine.adapter);
     markDirty();
     renderCanvas();
   };
@@ -481,4 +503,4 @@ window.onbeforeunload = (e) => {
   }
 };
 
-void loadTemplates();
+void loadEngines().then(loadTemplates);

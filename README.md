@@ -18,9 +18,11 @@
 | 审批门 ✅批准 / ⛔拒绝（含 API 引擎协议） | ✅ 端到端验收 |
 | Mission Control 蜂房画布 + 手机审批 PWA | ✅ 浏览器验收 |
 | 共享大脑（Obsidian 落库 / 接活查库） | ✅ v0 |
-| 团队模板 **20 个**（社区 11 + 原创 4 + 自研 5） | ✅ 全部合法 |
-| 引擎注册表 **12 契约**（deepseek/qwen 实测通） | ✅ 开箱即用 |
-| 聊天通道 feishu / telegram / discord | ✅ 连接器就绪（真回调等凭据，§快速开始） |
+| 团队模板 **22 个**（社区 11 + 原创 4 + 自研 7） | ✅ 全部合法 |
+| 引擎注册表 **12 契约**（deepseek/qwen 实测通，编辑器标 key 就绪度） | ✅ 开箱即用 |
+| 组织编辑器（拖拽画布 + 角色表单 + 换脑联动） | ✅ org.html 浏览器验收 |
+| 合规率两道门（漏交棒重派 / 先批后审自愈） | ✅ qwen 修后 5/5 PASS |
+| 聊天通道 feishu / telegram / discord / slack / dingtalk / wecom | ✅ 连接器就绪（真回调等凭据，§快速开始） |
 
 ## 仓库结构
 
@@ -30,10 +32,11 @@ hive/
 │   ├── kernel/        # 内核：任务总线、事件溯源、进程管理、熔断、CEO 三门、凭据代理 ✅
 │   ├── server/        # API + WebSocket + 看板（时间线/画布/输出流/账单）✅
 │   ├── adapters/      # 12 引擎契约 + 桥接 worker + 凭据代理 ✅
-│   ├── connectors/    # 飞书（长连接+webhook）/ Telegram（长轮询）/ Discord（gateway）✅
+│   ├── connectors/    # 飞书（长连接+webhook）/ Telegram（长轮询）/ Discord（gateway）
+│   │                  # / Slack（Socket Mode）/ 钉钉（Stream Mode）/ 企微（回调）✅ 全离线 E2E
 │   └── shared/        # 协议唯一真相源：事件 schema、org-chart、交接协议、账本 ✅
-├── teams/             # 20 个团队模板（兼容 agent-org-chart，含社区 11 套）
-├── scripts/           # ignition 自检 / 真引擎闭环 / 模板导入 / hive-chat 统一入口
+├── teams/             # 22 个团队模板（兼容 agent-org-chart，含社区 11 套）
+├── scripts/           # ignition 自检 / 真引擎闭环 / 模板导入 / hive-chat 统一入口 / hive-replay 审计
 └── docs/              # 引擎清单等工程文档
 ```
 
@@ -48,7 +51,7 @@ hive/
 
 ```bash
 pnpm install && pnpm build
-pnpm test                                    # 58 个测试
+pnpm test                                    # 74 个测试
 pnpm --filter @hive/kernel demo              # mock 团队闭环 demo
 node --env-file=.env scripts/run-real-loop.mjs   # 真引擎 3-bot 闭环（凭据代理开启）
 node scripts/import-team.mjs <chart.json> --with-reviewer   # 导入社区团队
@@ -58,10 +61,13 @@ node scripts/hive-chat.mjs                   # 聊天统一入口（自动检测
 
 ### 聊天段验收（最后一段，填任一凭据即可）
 
-三选一填进 `.env`：
+六选一填进 `.env`（前两套免公网零配置成本最低）：
 - **Telegram（最快）**：@BotFather → /newbot → token → `TELEGRAM_BOT_TOKEN=`
 - **飞书**：open.feishu.cn 建企业自建应用（长连接）→ 三值
 - **Discord**：Developer Portal → Bot → token（开 MESSAGE CONTENT intent）
+- **Slack**：api.slack.com/apps → Socket Mode（xapp-）+ OAuth（xoxb-，chat:write）→ 订阅 message.im + app_mention
+- **钉钉**：open-dev.dingtalk.com 企业内部应用 → appKey/appSecret → 机器人消息接收选「Stream 模式」
+- **企微**：管理后台自建应用 → 五值（corpid/secret/AgentId/Token/EncodingAESKey）→ 接收消息 URL 需公网（cloudflared 可转发），wecom-demo
 
 然后：
 ```bash

@@ -6,6 +6,7 @@
  *                      FEISHU_APP_ID/SECRET/ENCRYPT_KEY（长连接免公网）
  *                      DISCORD_BOT_TOKEN（Developer Portal，开 MESSAGE CONTENT intent）
  *                      SLACK_BOT_TOKEN + SLACK_APP_TOKEN（Socket Mode 免公网）
+ *                      DINGTALK_APP_KEY/SECRET（Stream Mode 免公网，robotCode=appKey）
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,6 +19,7 @@ import { FeishuConnector, FeishuClient, startFeishuLongConnection } from "../pac
 import { TelegramConnector, TelegramClient, startTelegramPolling } from "../packages/connectors/dist/index.js";
 import { DiscordConnector, DiscordClient, startDiscordGateway } from "../packages/connectors/dist/index.js";
 import { SlackConnector, SlackClient, startSlackSocket } from "../packages/connectors/dist/index.js";
+import { DingTalkConnector, DingTalkClient, startDingTalkStream } from "../packages/connectors/dist/index.js";
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 const hiveRoot = join(scriptRoot, "..");
@@ -30,10 +32,11 @@ const channels = {
   feishu: !!process.env.FEISHU_APP_ID && !!process.env.FEISHU_APP_SECRET,
   discord: !!process.env.DISCORD_BOT_TOKEN,
   slack: !!process.env.SLACK_BOT_TOKEN && !!process.env.SLACK_APP_TOKEN,
+  dingtalk: !!process.env.DINGTALK_APP_KEY && !!process.env.DINGTALK_APP_SECRET,
 };
 const ready = Object.entries(channels).filter(([, ok]) => ok);
 if (ready.length === 0) {
-  console.error(`聊天凭据未配置——四选一填进 hive/.env 后重跑本脚本：
+  console.error(`聊天凭据未配置——五选一填进 hive/.env 后重跑本脚本：
 
   ① Telegram（最快，约 1 分钟）
      Telegram 里找 @BotFather → /newbot → 拿 token
@@ -53,6 +56,11 @@ if (ready.length === 0) {
      api.slack.com/apps → Create App → Socket Mode 启用拿 xapp-（App-Level Token）
      → OAuth 装 app 拿 xoxb-（scopes: chat:write）→ 订阅 message.im + app_mention
      → hive/.env 填 SLACK_BOT_TOKEN=<xoxb-…> 和 SLACK_APP_TOKEN=<xapp-…>
+
+  ⑤ 钉钉（约 10 分钟）
+     open-dev.dingtalk.com → 企业内部应用（H5 微应用）→ 拿 appKey/appSecret
+     → 应用能力 → 机器人开启，消息接收模式选「Stream 模式」→ 发布版本
+     → hive/.env 填 DINGTALK_APP_KEY=<appKey> 和 DINGTALK_APP_SECRET=<appSecret>
 
 填好后：node --env-file=.env scripts/hive-chat.mjs  → 聊天里发一句话 → 团队交付 ✅`);
   process.exit(1);
@@ -104,6 +112,13 @@ if (channels.slack) {
   const connector = new SlackConnector({ kernel, defaultBudgetUsd: budget, log }, client);
   startSlackSocket({ client, connector, log });
   console.log("   slack: socket mode 运行中（频道/私聊发消息）");
+}
+// 钉钉（Stream Mode 免公网）
+if (channels.dingtalk) {
+  const client = new DingTalkClient({ appKey: process.env.DINGTALK_APP_KEY, appSecret: process.env.DINGTALK_APP_SECRET });
+  const connector = new DingTalkConnector({ kernel, defaultBudgetUsd: budget, log }, client);
+  await startDingTalkStream({ client, connector, log });
+  console.log("   dingtalk: stream mode 运行中（单聊机器人/群里 @机器人）");
 }
 // 飞书（官方 SDK 长连接免公网）
 if (channels.feishu) {

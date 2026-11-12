@@ -21,6 +21,21 @@ export const ReviewVerdict = z.discriminatedUnion("verdict", [
 ]);
 export type ReviewVerdict = z.infer<typeof ReviewVerdict>;
 
+/**
+ * 引擎 verdict 字段错位纠偏（实测首跑抓到的失败模式：HOLD 配了 evidence，BLOCK 配了 reason）。
+ * 说明文字是审核员真实说出的，只是放错了字段——内核不为字段名错位整单报废；
+ * 纠偏后仍须过 ReviewVerdict 校验（BLOCK 无任何说明依旧非法，store 硬门禁不变）。
+ */
+export function normalizeVerdictInput(m: { verdict: string; evidence?: string; reason?: string }): {
+  verdict: string;
+  evidence?: string;
+  reason?: string;
+} {
+  if (m.verdict === "HOLD" && !m.reason && m.evidence) return { verdict: m.verdict, reason: m.evidence };
+  if (m.verdict === "BLOCK" && !m.evidence && m.reason) return { verdict: m.verdict, evidence: m.reason };
+  return m;
+}
+
 /** 治理硬规则：写进 profiles 跨引擎通用，内核按此强制执行（不依赖 bot 自觉）。 */
 export const GOVERNANCE = {
   /** 只有总管（orchestrator）可主动 @ 其他 bot，防 relay 死循环 */

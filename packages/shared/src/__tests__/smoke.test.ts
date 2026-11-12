@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { EventEnvelope, parseEvent, STATUS_GLYPH } from "../events.js";
-import { HandoffNote, ReviewVerdict, GOVERNANCE } from "../handoff.js";
+import { HandoffNote, ReviewVerdict, GOVERNANCE, normalizeVerdictInput } from "../handoff.js";
 import { TeamChartSchema, validateChart, importAgentOrgChart } from "../org-chart.js";
 import { summarizeReceipt } from "../ledger.js";
 
@@ -64,6 +64,22 @@ test("审核结论：BLOCK 无证据非法，PASS/HOLD 合法路径正确", () =
   assert.throws(() => ReviewVerdict.parse({ verdict: "BLOCK" }));
   const hold = ReviewVerdict.parse({ verdict: "HOLD", reason: "等数据补齐" });
   assert.equal(hold.verdict, "HOLD");
+});
+
+test("verdict 字段错位纠偏：HOLD 配 evidence / BLOCK 配 reason 就地回退，纠偏后过校验", () => {
+  // 真实首跑抓到的失败模式（Telegram 任务 #1）：reviewer 给了 HOLD + evidence
+  const fixed = normalizeVerdictInput({ verdict: "HOLD", evidence: "初稿空泛，待补主题" });
+  assert.deepEqual(fixed, { verdict: "HOLD", reason: "初稿空泛，待补主题" });
+  assert.ok(ReviewVerdict.safeParse(fixed).success, "纠偏后应过 ReviewVerdict");
+
+  const fixedBlock = normalizeVerdictInput({ verdict: "BLOCK", reason: "数据造假，无出处" });
+  assert.deepEqual(fixedBlock, { verdict: "BLOCK", evidence: "数据造假，无出处" });
+  assert.ok(ReviewVerdict.safeParse(fixedBlock).success, "BLOCK 纠偏后应过校验");
+
+  // 字段名没放错的原样通过；BLOCK 无任何说明纠偏后仍非法（store 硬门禁不放宽）
+  assert.deepEqual(normalizeVerdictInput({ verdict: "PASS" }), { verdict: "PASS" });
+  assert.deepEqual(normalizeVerdictInput({ verdict: "BLOCK", evidence: "有证据" }), { verdict: "BLOCK", evidence: "有证据" });
+  assert.ok(!ReviewVerdict.safeParse(normalizeVerdictInput({ verdict: "BLOCK" })).success, "BLOCK 完全无说明依旧非法");
 });
 
 test("治理规则默认值正确", () => {

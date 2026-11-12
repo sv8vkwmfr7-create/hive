@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   HandoffNote,
   ReviewVerdict,
+  normalizeVerdictInput,
   summarizeReceipt,
   validateChart,
 } from "@hive/shared";
@@ -464,7 +465,8 @@ export class HiveKernel {
               fail(`非审核员 bot ${role.id} 试图出审核结论，内核拒绝`);
               return;
             }
-            const v = ReviewVerdict.safeParse({ verdict: m.verdict, evidence: m.evidence, reason: m.reason });
+            // 字段错位自愈：HOLD 配 evidence / BLOCK 配 reason → 就地纠偏再校验（说明文字是真实审核意见，不为字段名报废整单）
+            const v = ReviewVerdict.safeParse(normalizeVerdictInput({ verdict: m.verdict, evidence: m.evidence, reason: m.reason }));
             if (!v.success) {
               fail(`审核结论不合法：${v.error.issues.map((i) => i.message).join("; ")}`);
               return;

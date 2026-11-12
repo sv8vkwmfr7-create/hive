@@ -331,6 +331,35 @@ test("审批门：拒绝 → 任务如实失败，不放行", async () => {
   }
 });
 
+test("先批后审自愈：同回合审批+结论 → 结论丢弃挂起待批 → 批准后重跑出干净结论", async () => {
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart });
+  const taskId = kernel.createTask({ title: "双发自愈", brief: "send_external 需 CEO 批准", budgetUsd: 5 });
+  process.env.HIVE_MOCK_APPROVAL = "send_external";
+  process.env.HIVE_MOCK_DUAL_TURN = "1";
+  try {
+    const res = await kernel.runTask(taskId);
+    assert.equal(res.status, "paused", `双发轮应挂起待批而非整单失败：${res.reason ?? ""}`);
+    const evs1 = kernel.store.replayTaskEvents(taskId);
+    assert.ok(evs1.some((e) => e.kind === "approval.requested"), "应有审批请求");
+    assert.ok(!evs1.some((e) => e.kind === "review.verdict"), "同回合的结论必须被丢弃，不落流");
+    const violation = evs1.find((e) => e.kind === "error.reported");
+    assert.ok(violation, "应记违规事件（可审计）");
+    assert.equal((violation!.payload as { fatal?: boolean }).fatal, false, "违规是非致命的");
+
+    const res2 = await kernel.approveTask(taskId, "send_external", "CEO");
+    assert.equal(res2.status, "ok", `批准重跑后应 ok：${res2.reason ?? ""}`);
+    const verdicts = kernel.store
+      .replayTaskEvents(taskId)
+      .filter((e) => e.kind === "review.verdict")
+      .map((e) => (e.payload as { verdict: string }).verdict);
+    assert.deepEqual(verdicts, ["PASS"], "只有批准后的干净结论落流");
+  } finally {
+    delete process.env.HIVE_MOCK_APPROVAL;
+    delete process.env.HIVE_MOCK_DUAL_TURN;
+  }
+});
+
 test("合规率门：specialist 漏交棒 → 自动重派一次（prompt 强调交棒）→ 复跑至交付", async () => {
   const dataDir = tmpDataDir();
   const kernel = new HiveKernel({ dataDir, chart: mockChart });

@@ -450,7 +450,13 @@ export class HiveKernel {
           }
           case "verdict": {
             if (askedApproval) {
-              fail("请求审批的回合不应同时出审核结论：先批后审");
+              // 先批后审：同回合既请求审批又出结论 → 结论丢弃（不落流不入账），记非致命违规，审批流继续。
+              // 与合规率门同一哲学：引擎偶发双发不整单报废——批准重跑后该蜂自然出干净结论。
+              this.emit(taskId, "kernel", "error.reported", {
+                message: `bot ${role.id} 同回合既请求审批又出审核结论——按「先批后审」丢弃结论，仅保留审批请求`,
+                byBot: role.id,
+                fatal: false,
+              });
               return;
             }
             // 门禁 5：只有审核员能出结论，且用 shared 的 ReviewVerdict（BLOCK 必须带证据）

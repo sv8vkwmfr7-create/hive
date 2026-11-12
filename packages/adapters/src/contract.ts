@@ -21,6 +21,8 @@ export const AdapterContract = z
     base_url: z.string().min(1).optional(),
     model: z.string().min(1).optional(),
     env_key: z.string().min(1).optional(),
+    /** api 系附加请求体（如 qwen 的 {"response_format":{"type":"json_object"}} 强制合法 JSON）——原样合并进 body */
+    extra_body: z.record(z.string(), z.unknown()).optional(),
     /** 解析规则：scan 存在时 tokens/usd 路径相对 scan 结果求值（不带 $），否则相对整个文档（带 $） */
     usage_parse: z
       .object({

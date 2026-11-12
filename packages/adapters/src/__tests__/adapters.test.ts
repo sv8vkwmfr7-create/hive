@@ -302,6 +302,27 @@ test("buildPrompt：共享大脑——有库列条目促查库，无库说明自
   assert.match(noVaultField, /当前为空/, "未传 vault 视为空库");
 });
 
+test("prompt：审批门 reviewer 回复形状互斥二选一；无门 reviewer 不见 approval", () => {
+  const gated: TaskPack = {
+    taskId: "t1",
+    botId: "reviewer",
+    role: "reviewer",
+    instruction: "审",
+    artifactDir: "/tmp/x",
+    inputArtifacts: [],
+    needsApprovalFor: ["send_external"],
+  };
+  const gatedPrompt = buildPrompt(gated, "qwen");
+  assert.match(gatedPrompt, /两种回复二选一/, "带门 reviewer 应见互斥形状，避免同回合双发");
+  assert.match(gatedPrompt, /绝不能同时包含 verdict 和 approval/);
+  assert.match(gatedPrompt, /① 正常出结论/);
+  assert.match(gatedPrompt, /② 仅当本轮就要执行审批门/);
+  assert.match(gatedPrompt, /请求审批的回合只发 approval/);
+
+  const ungatedPrompt = buildPrompt({ ...gated, needsApprovalFor: undefined }, "qwen");
+  assert.doesNotMatch(ungatedPrompt, /"approval"/, "无门 reviewer 不应见 approval 字段（防 T1 乱发审批）");
+});
+
 test("E2E：API 引擎请求审批 → 内核挂起 → approveTask 带 approvals 重跑 → ok", async () => {
   // 状态化假 OpenAI 兼容服务器：按角色与批准状态回不同协议 JSON
   const server = createServer((req, res) => {
@@ -385,6 +406,62 @@ test("E2E：API 引擎请求审批 → 内核挂起 → approveTask 带 approval
     assert.ok(evs.some((e) => e.kind === "review.verdict"), "重跑后仍走独立审核");
   } finally {
     delete process.env.FAKE_API_KEY;
+    server.close();
+  }
+});
+
+test("extra_body：契约附加字段原样合并进请求体（qwen response_format 加固）", async () => {
+  let captured: Record<string, unknown> | undefined;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c: string) => (body += c));
+    req.on("end", () => {
+      captured = JSON.parse(body) as Record<string, unknown>;
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify({ say: "ok" }) } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }),
+      );
+    });
+  });
+  await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
+  const port = (server.address() as AddressInfo).port;
+  const dir = mkdtempSync(join(tmpdir(), "hive-extrabody-"));
+  writeFileSync(
+    join(dir, "fake-qw.json"),
+    JSON.stringify({
+      adapter: "fake-qw",
+      kind: "api",
+      mode: "openai_chat",
+      contract_version: 1,
+      base_url: `http://127.0.0.1:${port}/v1`,
+      model: "fake-qwen",
+      env_key: "FAKE_QW_KEY",
+      extra_body: { response_format: { type: "json_object" } },
+      usage_parse: { tokens_in: "$.usage.prompt_tokens", tokens_out: "$.usage.completion_tokens" },
+      pricing: { input_per_mtok: 1, output_per_mtok: 2 },
+      on_unparseable: "fail",
+      timeout_ms: 30000,
+    }),
+  );
+  process.env.FAKE_QW_KEY = "offline-fake";
+  try {
+    const { code, msgs, stderr } = await runBridgeWorker(join(dir, "fake-qw.json"), {
+      taskId: "x1",
+      botId: "writer",
+      role: "specialist",
+      instruction: "冒烟",
+      artifactDir: mkdtempSync(join(tmpdir(), "hive-xb-art-")),
+      inputArtifacts: [],
+    });
+    assert.equal(code, 0, `应成功退出，stderr=${stderr}`);
+    assert.ok(captured, "请求体应被假服务器捕获");
+    assert.deepEqual((captured as Record<string, unknown>).response_format, { type: "json_object" }, "契约 extra_body 应原样进请求体");
+    assert.ok(msgs.some((m) => m.type === "output" && m.chunk.includes("ok")));
+  } finally {
+    delete process.env.FAKE_QW_KEY;
     server.close();
   }
 });

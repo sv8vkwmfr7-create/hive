@@ -262,6 +262,8 @@ async function callOpenAiChat(contract: AdapterContract, prompt: string): Promis
         model: contract.model,
         messages: [{ role: "user", content: prompt }],
         stream: false,
+        // 契约附加体（如 qwen response_format json_object）原样合并——引擎 API 级约束走契约，不写死在桥里
+        ...(contract.extra_body ?? {}),
       }),
       signal: controller.signal,
     });

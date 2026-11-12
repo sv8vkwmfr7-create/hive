@@ -56,13 +56,22 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
     ? `, "approval": {"action": "<需要审批的动作名，见上方审批门清单>", "risk": "high"}`
     : "";
   const replyShape = isReviewer
-    ? `{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}${approvalField}}`
+    ? hasApprovalGate
+      ? `以下两种回复二选一，绝不能同时包含 verdict 和 approval（同回合双发会被内核丢弃结论并记违规）：
+① 正常出结论（绝大多数回合用这个）：{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}}
+② 仅当本轮就要执行审批门里的高风险动作时才用（此时禁止出任何结论）：{"say": "需要审批：<动作>", "approval": {"action": "<动作名，见审批门清单>", "risk": "high"}}`
+      : `{"say": "给总管的一句话说明", "verdict": {"verdict": "PASS 或 BLOCK 或 HOLD", "evidence": "判定依据（BLOCK 必填）"}}`
     : isChief
       ? `{"say": "给用户的简短进展说明", "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}}}`
       : `{"say": "给用户的简短进展说明", "artifact": {"filename": "名字.md", "content": "全文"}, "handoff": {"to": "<合法交接目标之一>", "note": {"reason": "转交原因", "progress": "当前进度", "ask": "需要对方做什么"}}${approvalField} 或无下一棒时省略 handoff}`;
 
   const roleRules = isReviewer
-    ? [`- 你是独立审核员：只出 PASS / BLOCK（必须带证据）/ HOLD，绝不替生产者改稿，也不产出任何文件`]
+    ? [
+        `- 你是独立审核员：只出 PASS / BLOCK（必须带证据）/ HOLD，绝不替生产者改稿，也不产出任何文件`,
+        hasApprovalGate
+          ? `- 请求审批的回合只发 approval，绝不同时输出 verdict；出结论的回合绝不带 approval（二选一，内核强制）`
+          : "",
+      ].filter(Boolean)
     : isChief
       ? [
           `- 你是总管：你不亲自产出成品，回复里禁止出现 artifact 字段`,

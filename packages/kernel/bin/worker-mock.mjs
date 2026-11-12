@@ -63,6 +63,10 @@ async function main() {
     if (needApproval && !(input.approvals ?? []).includes(needApproval)) {
       say({ type: "output", chunk: `需要审批：${needApproval}（高风险动作，内核挂起等待 CEO）` });
       say({ type: "approval", action: needApproval, risk: "high" });
+      if (process.env.HIVE_MOCK_DUAL_TURN === "1") {
+        // 先批后审自愈测试：同回合既请求审批又出结论 → 内核应丢弃结论、挂起待批，而非整单失败
+        say({ type: "verdict", verdict: "PASS", evidence: "双发违规轮的结论，应被内核丢弃" });
+      }
       say({ type: "usage", ...usage });
       process.exit(0);
     }

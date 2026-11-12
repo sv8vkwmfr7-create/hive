@@ -10,10 +10,20 @@
     "tokens_in": "$.usage.prompt_tokens",
     "tokens_out": "$.usage.completion_tokens"
   },
-  "pricing": { "input_per_mtok": 0.11, "output_per_mtok": 0.28 },
+  "pricing": {
+    "input_per_mtok": 0.11,
+    "output_per_mtok": 0.28
+  },
   "on_unparseable": "fail",
   "timeout_ms": 120000,
-  "caps": { "tools": true },
+  "caps": {
+    "tools": true
+  },
   "tier": "T1",
-  "notes": "key 复用 docprep-ai/.env 现成 dashscope key（2026-11-10 自主点火实测 HTTP 200）；pricing 为牌价粗估（¥0.8/M 入、¥2/M 出折算），实际以账单为准"
+  "notes": "key 复用 docprep-ai/.env 现成 dashscope key（2026-11-10 自主点火实测 HTTP 200）；pricing 为牌价粗估（¥0.8/M 入、¥2/M 出折算），实际以账单为准；2026-11-11 起启用 response_format json_object（API 级强制合法 JSON，合规率加固；探针实证 HTTP 200）",
+  "extra_body": {
+    "response_format": {
+      "type": "json_object"
+    }
+  }
 }

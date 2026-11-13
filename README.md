@@ -51,7 +51,7 @@ hive/
 
 ```bash
 pnpm install && pnpm build
-pnpm test                                    # 74 个测试
+pnpm test                                    # 75 个测试
 pnpm --filter @hive/kernel demo              # mock 团队闭环 demo
 node --env-file=.env scripts/run-real-loop.mjs   # 真引擎 3-bot 闭环（凭据代理开启）
 node scripts/import-team.mjs <chart.json> --with-reviewer   # 导入社区团队

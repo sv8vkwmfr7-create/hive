@@ -1,5 +1,5 @@
 /* 蜂巢审批 PWA Service Worker：壳缓存 + API 直连（数据永远走网络，不缓存决策数据） */
-const CACHE = "hive-approve-v1";
+const CACHE = "hive-approve-v2"; // 改壳资源（style.css/approve.*）必须 bump 版本，否则已装 PWA 永远拿旧缓存
 const SHELL = ["/approve.html", "/approve.css", "/approve.js", "/style.css", "/manifest.json", "/icons/icon.svg"];
 
 self.addEventListener("install", (e) => {

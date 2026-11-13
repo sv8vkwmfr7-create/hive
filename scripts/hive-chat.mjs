@@ -66,7 +66,8 @@ if (ready.length === 0) {
   process.exit(1);
 }
 
-const dataDir = join(hiveRoot, "data", `hive-chat-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+// HIVE_DATA_DIR 可指定既有数据目录重启：内核从事件流重建任务视图与预算（一切皆事件）
+const dataDir = process.env.HIVE_DATA_DIR ?? join(hiveRoot, "data", `hive-chat-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 const adaptersDir = join(hiveRoot, "packages", "adapters", "adapters");
 const proxy = await startCredentialProxy({ adaptersDir, env: process.env });
 const workers = createAdapterResolver({ adaptersDir, proxyUrl: proxy.url, proxySecret: proxy.secret });

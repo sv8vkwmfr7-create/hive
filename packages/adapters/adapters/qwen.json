@@ -20,7 +20,7 @@
     "tools": true
   },
   "tier": "T1",
-  "notes": "key 复用 docprep-ai/.env 现成 dashscope key（2026-11-10 自主点火实测 HTTP 200）；pricing 为牌价粗估（¥0.8/M 入、¥2/M 出折算），实际以账单为准；2026-11-11 起启用 response_format json_object（API 级强制合法 JSON，合规率加固；探针实证 HTTP 200）",
+  "notes": "openai 兼容端点 dashscope.aliyuncs.com/compatible-mode/v1，模型 qwen-plus；pricing 为牌价粗估（¥0.8/M 入、¥2/M 出折算），实际以账单为准；2026-11-11 起启用 response_format json_object（API 级强制合法 JSON，合规率加固；探针实证 HTTP 200）。key 从阿里云百炼控制台获取（DASHSCOPE_API_KEY）",
   "extra_body": {
     "response_format": {
       "type": "json_object"

@@ -36,7 +36,7 @@ function card(t) {
 function render(tasks) {
   const el = $("#cards");
   if (!tasks.length) {
-    el.innerHTML = '<div class="pad dim">还没有任务——去桌面看板发一单。</div>';
+    el.innerHTML = '<div class="pad dim">还没有任务——在网页看板发一单，或通过聊天通道发一句话。</div>';
     return;
   }
   const pending = tasks.filter((t) => t.pendingApproval);

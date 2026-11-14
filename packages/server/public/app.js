@@ -1,6 +1,7 @@
 /* 蜂巢看板前端：vanilla JS，无构建步骤。
    数据真相源 = 内核事件流（HTTP 拉详情，WS 收实时事件）。 */
 const state = {
+  focusBot: null,
   tasks: [],
   selected: null,
   detail: null,
@@ -85,23 +86,36 @@ function renderDetail() {
   $("#status-line").innerHTML =
     `任务 #${d.taskId}「${escapeHtml(d.title)}」 ${d.glyph} ${d.status}` +
     ` · 已花费 <b>$${d.spendUsd.toFixed(2)}</b>${d.budgetUsd != null ? `/预算 $${d.budgetUsd}` : ""}` +
-    (d.paused ? ` · <b>⏸️ 已暂停</b>` : "");
+    (d.paused ? ` · <b>⏸️ 已暂停</b>` : "") +
+    (state.focusBot ? ` · <b>🎥 聚焦蜂房：${escapeHtml(state.focusBot)}</b> <button id="btn-unfocus" title="取消聚焦">✕</button>` : "");
 
   renderCeoControls(d);
   renderCanvas(d);
+  bindUnfocus();
 
   const tl = $("#timeline");
   tl.innerHTML = "";
-  for (const t of d.timeline) renderTimelineRow(t, tl);
+  const focusRows = state.focusBot ? d.timeline.filter((t) => t.actor === state.focusBot || t.kind === "task.created") : d.timeline;
+  for (const t of focusRows) renderTimelineRow(t, tl);
 
   const out = $("#outputs");
   out.innerHTML = "";
-  for (const t of d.timeline.filter((x) => x.kind === "bot.output")) {
+  const outRows = d.timeline.filter((x) => x.kind === "bot.output" && (!state.focusBot || x.actor === state.focusBot));
+  for (const t of outRows) {
     out.textContent += `[${t.actor}] ${t.payload.chunk}\n`;
   }
   out.scrollTop = out.scrollHeight;
 
   renderReceipt(d.receipt);
+}
+
+/* ---------- 蜂房聚焦（差异化①：点开任一蜂房看它的实时输出） ---------- */
+function bindUnfocus() {
+  const btn = $("#btn-unfocus");
+  if (btn) btn.onclick = () => {
+    state.focusBot = null;
+    renderDetail();
+  };
 }
 
 /* ---------- CEO 门：⏸️ 暂停 / ▶️ 恢复 / ✋ 接管派工 ---------- */
@@ -279,11 +293,13 @@ function renderCanvas(d) {
       stroke = "#e5484d";
       glyph = "⛔";
     }
-    const cls = st === "running" ? ' class="cell-running"' : "";
+    const focused = state.focusBot === r.id;
+    if (focused) stroke = "#4c9aff";
+    const cls = ["cell", st === "running" ? "cell-running" : "", focused ? "cell-focus" : ""].filter(Boolean).join(" ");
     const vBadge = r.kind === "reviewer" && verdict ? ` · ${verdict.verdict === "PASS" ? "✅" : "⛔"}` : "";
     cells +=
-      `<g${cls}>` +
-      `<polygon points="${hex(p.x, p.y, CW, CH)}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
+      `<g class="${cls}" style="cursor:pointer" data-bot="${escapeHtml(r.id)}" title="点击聚焦该蜂房的实时输出">` +
+      `<polygon points="${hex(p.x, p.y, CW, CH)}" fill="${fill}" stroke="${focused ? "#4c9aff" : stroke}" stroke-width="${focused ? 3 : 2}"/>` +
       `<text x="${p.x + 14}" y="${p.y + 24}" fill="#ffb454" font-size="15">🐝 ${escapeHtml(r.name)}</text>` +
       `<text x="${p.x + 14}" y="${p.y + 44}" fill="#7d838e" font-size="11">${escapeHtml(r.engine?.adapter ?? "?")}${vBadge}</text>` +
       `<text x="${p.x + 14}" y="${p.y + 62}" fill="#d7dae0" font-size="11">${glyph} $${(spend[r.id] ?? 0).toFixed(4)}${arts[r.id] ? ` · 📄×${arts[r.id]}` : ""}</text>` +
@@ -317,7 +333,14 @@ function renderCanvas(d) {
     : "";
   el.innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="蜂房作战地图">${defs}${edges}${cells}</svg>` +
-    `<div class="legend">🔄 执行中（脉冲）· ✅ 完成 · 💰 花费 · 📄 产物数 · 流动虚线 = 最近一次派单${verdictLine}</div>`;
+    `<div class="legend">点击蜂房 = 聚焦它的实时输出 · 🔄 执行中（脉冲）· ✅ 完成 · 💰 花费 · 📄 产物数 · 流动虚线 = 最近一次派单${verdictLine}</div>`;
+  // 蜂房点击聚焦（再点同一蜂房取消）
+  for (const g of el.querySelectorAll("g[data-bot]")) {
+    g.addEventListener("click", () => {
+      state.focusBot = state.focusBot === g.dataset.bot ? null : g.dataset.bot;
+      renderDetail();
+    });
+  }
 }
 
 function renderReceipt(receipt) {

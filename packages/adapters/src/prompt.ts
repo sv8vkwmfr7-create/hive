@@ -12,6 +12,8 @@ export interface TaskPack {
   handoffs?: Array<{ to: string; when: string }>;
   /** 共享大脑（团队知识库）已有条目——接活先查库，避免重复劳动；带 frontmatter 语义 */
   vault?: Array<{ name: string; title?: string; tags?: string[]; date?: string }>;
+  /** 团队技能（锻造厂）：任务指令命中 applies 的好做法，接活即遵循 */
+  skills?: Array<{ name: string; description: string; body: string }>;
   /** 审批门：本任务已获 CEO 批准的动作（重跑的蜂据此跳过再次请求审批） */
   approvals?: string[];
   /** 角色护栏：执行这些高风险动作前必须先在回复里请求审批（内核挂起等 CEO） */
@@ -102,6 +104,11 @@ export function buildPrompt(pack: TaskPack, adapterName: string): string {
           })
           .join("\n")}`
       : `\n团队知识库（共享大脑）当前为空：你交付的产物会自动落库，成为团队的长期资产`,
+    pack.skills?.length
+      ? `\n团队技能（本任务命中，是团队沉淀的好做法，务必遵循）：\n${pack.skills
+          .map((s) => `### ${s.name}${s.description ? `——${s.description}` : ""}\n${clip(s.body, 1200)}`)
+          .join("\n\n")}`
+      : "",
     pack.approvals?.length
       ? `\n已获 CEO 批准、可直接执行的动作（无需再请求审批）：${pack.approvals.join("、")}`
       : "",

@@ -6,3 +6,4 @@ export * from "./handoff.js";
 export * from "./org-chart.js";
 export * from "./events.js";
 export * from "./ledger.js";
+export * from "./skills.js";

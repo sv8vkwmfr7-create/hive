@@ -4,11 +4,14 @@ import { join } from "node:path";
 import {
   HandoffNote,
   ReviewVerdict,
+  matchSkills as matchSkillList,
   normalizeVerdictInput,
+  parseSkillFile,
   summarizeReceipt,
   validateChart,
+  validateSkills,
 } from "@hive/shared";
-import type { TeamChart, TaskReceipt } from "@hive/shared";
+import type { SkillFile, TeamChart, TaskReceipt } from "@hive/shared";
 import { EventStore } from "../store/eventStore.js";
 import type { StoredEvent } from "../store/eventStore.js";
 import { BudgetGuard } from "./budget.js";
@@ -34,6 +37,11 @@ export interface KernelOptions {
    * 后续任务的 bot 接活先查库（vault 条目清单随任务包下发）。
    */
   vaultDir?: string;
+  /**
+   * 团队技能目录（技能锻造厂 v0）：skills/*.md 的 frontmatter 命中任务指令关键词时，
+   * 技能随任务包下发给接活的蜂（applies 空 = 全局技能每单都挂）。
+   */
+  skillsDir?: string;
   /**
    * 引擎解析器：adapterId → worker 规格。
    * 不提供或返回 null → 该引擎如实失败（不冒充可用）。默认只认 mock。
@@ -391,6 +399,8 @@ export class HiveKernel {
           .map((h) => ({ to: h.to, when: h.when })),
         // 共享大脑：接活先查库——知识库已有条目随任务包下发
         vault: this.vaultEntries(),
+        // 团队技能：任务指令命中 applies 关键词的技能随包下发（锻造厂好做法 → 接活即遵循）
+        skills: this.matchSkills(item.instruction ?? ""),
         // 审批门：本任务已获批准的动作（重跑的蜂据此跳过再次请求）
         approvals: this.grantedActions(taskId),
         // 角色护栏：哪些动作需要 CEO 审批（提示词讲规矩，强制在审批门）
@@ -550,8 +560,33 @@ export class HiveKernel {
   }
 
   /** 共享大脑：知识库已有条目（文件名 + frontmatter 语义，bot 接活先查库并判断相关性）。扫根目录与一级子目录 */
-  private vaultEntries(): Array<{ name: string; title?: string; tags?: string[]; date?: string }> {
-    const dir = this.opts.vaultDir;
+  /** 团队技能缓存：skills/ 目录只扫一次（锻造厂改动后重启生效——与 vault 同哲学） */
+  private skillCache?: SkillFile[];
+
+  private skillFiles(): SkillFile[] {
+    const dir = this.opts.skillsDir;
+    if (!dir || !existsSync(dir)) return [];
+    if (this.skillCache) return this.skillCache;
+    const list: SkillFile[] = [];
+    for (const f of readdirSync(dir).filter((x) => x.endsWith(".md"))) {
+      try {
+        list.push(parseSkillFile(readFileSync(join(dir, f), "utf8"), f.replace(/\.md$/, "")));
+      } catch (e) {
+        // 坏技能文件如实报（不静默吞掉），其余技能照常挂载
+        console.error(`[hive] 技能文件 ${f} 解析失败：${e instanceof Error ? e.message : e}`);
+      }
+    }
+    for (const p of validateSkills(list)) console.error(`[hive] 技能校验提醒：${p}`);
+    this.skillCache = list;
+    return list;
+  }
+
+  /** 任务指令 → 命中的团队技能（随任务包下发） */
+  private matchSkills(instruction: string): Array<{ name: string; description: string; body: string }> {
+    return matchSkillList(this.skillFiles(), instruction).map((s) => ({ name: s.name, description: s.description, body: s.body }));
+  }
+
+  private vaultEntries(): Array<{ name: string; title?: string; tags?: string[]; date?: string }> {    const dir = this.opts.vaultDir;
     if (!dir || !existsSync(dir)) return [];
     const parseEntry = (fullPath: string, name: string) => {
       const entry: { name: string; title?: string; tags?: string[]; date?: string } = { name };

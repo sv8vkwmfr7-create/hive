@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,57 @@ const mockChart = JSON.parse(readFileSync(join(hiveRoot, "teams/mock-team.json")
 const tmpDataDir = () => mkdtempSync(join(tmpdir(), "hive-kernel-"));
 
 const kinds = (events: StoredEvent[]) => events.map((e) => e.kind);
+
+test("技能锻造厂 v0：指令命中 applies → 技能随任务包到达 worker；未命中不挂", async () => {
+  // 建临时 skills 目录：一个命中词技能 + 一个全局技能
+  const skillsDir = mkdtempSync(join(tmpdir(), "hive-skills-"));
+  writeFileSync(
+    join(skillsDir, "竞品简报.md"),
+    "---\nname: 竞品简报\ndescription: 简报结构规范\napplies: [简报, 竞品]\n---\n\n每竞品四段：定位→能力→定价→差异化。",
+    "utf8",
+  );
+  writeFileSync(
+    join(skillsDir, "输出口径.md"),
+    "---\nname: 输出口径\ndescription: 全局底线\napplies: []\n---\n\n事实与推测分栏。",
+    "utf8",
+  );
+
+  const dataDir = tmpDataDir();
+  const kernel = new HiveKernel({ dataDir, chart: mockChart, skillsDir });
+  const taskId = kernel.createTask({ title: "竞品简报", brief: "写一份竞品调研简报", budgetUsd: 5 });
+  process.env.HIVE_MOCK_ECHO_SKILLS = "1";
+  try {
+    const res = await kernel.runTask(taskId);
+    assert.equal(res.status, "ok", `应跑通：${res.reason ?? ""}`);
+    // worker 回显的技能名单：chief 的 instruction = brief（含命中词）→ 两技能都挂；
+    // 后续蜂的 instruction = 派单 ask（不含命中词）→ 只挂全局技能——恰好验证按指令匹配而非全局乱挂
+    const echoed = kernel.store
+      .replayTaskEvents(taskId)
+      .filter((e) => e.kind === "bot.output")
+      .map((e) => String((e.payload as { chunk?: string }).chunk ?? ""))
+      .filter((c) => c.startsWith("[skills]"));
+    assert.ok(echoed.length >= 4, `每只蜂都应回显技能清单（实际 ${echoed.length}）`);
+    assert.match(echoed[0], /竞品简报/, "chief（instruction=brief）应命中竞品简报技能");
+    assert.match(echoed[0], /输出口径/, "全局技能应到达 worker");
+    assert.doesNotMatch(echoed.at(-1)!, /竞品简报/, "后续蜂（instruction=派单 ask）不应误挂未命中技能");
+    assert.match(echoed.at(-1)!, /输出口径/, "全局技能仍然挂载");
+
+    // 对照组：指令不含任何命中词时，只挂全局技能（无 竞品简报）
+    const kernel2 = new HiveKernel({ dataDir: tmpDataDir(), chart: mockChart, skillsDir });
+    const t2 = kernel2.createTask({ title: "无关任务", brief: "整理会议纪要", budgetUsd: 5 });
+    await kernel2.runTask(t2);
+    const echoed2 = kernel2.store
+      .replayTaskEvents(t2)
+      .filter((e) => e.kind === "bot.output")
+      .map((e) => String((e.payload as { chunk?: string }).chunk ?? ""))
+      .filter((c) => c.startsWith("[skills]"))
+      .at(-1) ?? "";
+    assert.doesNotMatch(echoed2, /竞品简报/, "未命中词的技能不应挂载");
+    assert.match(echoed2, /输出口径/, "全局技能仍然挂载");
+  } finally {
+    delete process.env.HIVE_MOCK_ECHO_SKILLS;
+  }
+});
 
 test("E2E：mock 团队跑通第一个本地任务闭环，全事件可回放，账单落盘", async () => {
   const dataDir = tmpDataDir();

@@ -34,6 +34,10 @@ function artifact(name, title, body) {
 
 async function main() {
   await sleep(60);
+  // 技能锻造厂测试：HIVE_MOCK_ECHO_SKILLS=1 → 首个 output 回显收到的技能名（内核断言技能已随任务包到达）
+  if (process.env.HIVE_MOCK_ECHO_SKILLS === "1" && Array.isArray(input.skills) && input.skills.length) {
+    say({ type: "output", chunk: `[skills] ${input.skills.map((s) => s.name).join(",")}` });
+  }
   // 合规率重派测试：HIVE_MOCK_SKIP_HANDOFF=1 且非重派轮 → specialist 漏交棒（内核重派门再派一次）
   if (process.env.HIVE_MOCK_SKIP_HANDOFF === '1' && role !== 'orchestrator' && role !== 'reviewer' && !input.handoffRetry && handoffTarget) {
     say({ type: 'output', chunk: '产出完成（本轮故意漏交棒，测合规率门）' });

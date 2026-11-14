@@ -8,7 +8,7 @@
  *                      SLACK_BOT_TOKEN + SLACK_APP_TOKEN（Socket Mode 免公网）
  *                      DINGTALK_APP_KEY/SECRET（Stream Mode 免公网，robotCode=appKey）
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -76,6 +76,8 @@ const kernel = new HiveKernel({
   chart,
   workers,
   vaultDir: process.env.HIVE_VAULT ?? undefined,
+  // 技能锻造厂：skills/ 存在即挂载——发单指令命中 applies 的技能自动随任务包下发
+  skillsDir: existsSync(join(hiveRoot, "skills")) ? join(hiveRoot, "skills") : (process.env.HIVE_SKILLS_DIR ?? undefined),
 });
 const board = await createHiveServer({
   kernel,

@@ -5,7 +5,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const desktopRoot = dirname(fileURLToPath(import.meta.url));
 const hiveRoot = join(desktopRoot, "..", "..");
@@ -40,8 +40,9 @@ const kernel = new HiveKernel({
 });
 const board = await createHiveServer({ kernel, teamsDir: join(hiveRoot, "teams"), adaptersDir });
 
-writeFileSync(join(desktopRoot, ".board-url"), board.url, "utf8");
-console.log(`board.url=${board.url}`);
+const url = `http://127.0.0.1:${board.port}`;
+writeFileSync(join(desktopRoot, ".board-url"), url, "utf8");
+console.log(`board.url=${url}`);
 
 process.on("SIGINT", () => {
   proxy.close();

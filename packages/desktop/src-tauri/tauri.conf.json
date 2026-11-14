@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "蜂巢 Hive",
+  "version": "0.1.0",
+  "identifier": "com.hive.desktop",
+  "build": {},
+  "app": {
+    "windows": [],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false }
+}

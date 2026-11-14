@@ -56,6 +56,7 @@ pnpm --filter @hive/kernel demo              # mock 团队闭环 demo
 node --env-file=.env scripts/run-real-loop.mjs   # 真引擎 3-bot 闭环（凭据代理开启）
 node scripts/import-team.mjs <chart.json> --with-reviewer   # 导入社区团队
 node scripts/import-catalog.mjs              # 批量导入 agent-org-chart 全目录
+node scripts/hive-import.mjs <github-url>    # 模板市场：一键装任意公开仓库的团队 chart
 node scripts/hive-chat.mjs                   # 聊天统一入口（自动检测已填通道）
 ```
 

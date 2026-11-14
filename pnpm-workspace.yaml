@@ -3,4 +3,6 @@ packages:
 
 # protobufjs（飞书 SDK 传递依赖）的 postinstall 只构建浏览器 bundle，Node 运行时不需要
 allowBuilds:
+  electron: true
   protobufjs: false
+

@@ -1,0 +1,14 @@
+{
+  "name": "@hive/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "蜂巢桌面壳：Electron 窗口加载本地看板（内核进程内嵌，无独立 server 进程）",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^36.9.5"
+  }
+}

@@ -11,3 +11,7 @@ data/
 coverage/
 .DS_Store
 Thumbs.db
+
+# 桌面壳运行时产物
+packages/desktop/.board-url
+packages/desktop/src-tauri/target/

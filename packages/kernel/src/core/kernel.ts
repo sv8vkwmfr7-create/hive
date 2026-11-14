@@ -399,8 +399,8 @@ export class HiveKernel {
           .map((h) => ({ to: h.to, when: h.when })),
         // 共享大脑：接活先查库——知识库已有条目随任务包下发
         vault: this.vaultEntries(),
-        // 团队技能：任务指令命中 applies 关键词的技能随包下发（锻造厂好做法 → 接活即遵循）
-        skills: this.matchSkills(item.instruction ?? ""),
+        // 团队技能：按任务 brief 匹配（做法规范是任务级属性——每蜂的 instruction 是派单 ask，会丢失 brief 语义）
+        skills: this.matchSkills(this.taskBrief(taskId)),
         // 审批门：本任务已获批准的动作（重跑的蜂据此跳过再次请求）
         approvals: this.grantedActions(taskId),
         // 角色护栏：哪些动作需要 CEO 审批（提示词讲规矩，强制在审批门）
@@ -584,6 +584,12 @@ export class HiveKernel {
   /** 任务指令 → 命中的团队技能（随任务包下发） */
   private matchSkills(instruction: string): Array<{ name: string; description: string; body: string }> {
     return matchSkillList(this.skillFiles(), instruction).map((s) => ({ name: s.name, description: s.description, body: s.body }));
+  }
+
+  /** 任务 brief（技能匹配的基准；从事件流取——重启后依然正确） */
+  private taskBrief(taskId: string): string {
+    const created = this.store.replayTaskEvents(taskId).find((e) => e.kind === "task.created");
+    return (created?.payload as { brief?: string } | undefined)?.brief ?? "";
   }
 
   private vaultEntries(): Array<{ name: string; title?: string; tags?: string[]; date?: string }> {    const dir = this.opts.vaultDir;

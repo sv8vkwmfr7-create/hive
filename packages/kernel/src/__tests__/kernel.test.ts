@@ -37,20 +37,19 @@ test("技能锻造厂 v0：指令命中 applies → 技能随任务包到达 wor
   try {
     const res = await kernel.runTask(taskId);
     assert.equal(res.status, "ok", `应跑通：${res.reason ?? ""}`);
-    // worker 回显的技能名单：chief 的 instruction = brief（含命中词）→ 两技能都挂；
-    // 后续蜂的 instruction = 派单 ask（不含命中词）→ 只挂全局技能——恰好验证按指令匹配而非全局乱挂
+    // 技能按任务 brief 匹配（做法规范是任务级属性）——每只蜂（无论其 instruction 是 brief 还是派单 ask）都带上
     const echoed = kernel.store
       .replayTaskEvents(taskId)
       .filter((e) => e.kind === "bot.output")
       .map((e) => String((e.payload as { chunk?: string }).chunk ?? ""))
       .filter((c) => c.startsWith("[skills]"));
     assert.ok(echoed.length >= 4, `每只蜂都应回显技能清单（实际 ${echoed.length}）`);
-    assert.match(echoed[0], /竞品简报/, "chief（instruction=brief）应命中竞品简报技能");
-    assert.match(echoed[0], /输出口径/, "全局技能应到达 worker");
-    assert.doesNotMatch(echoed.at(-1)!, /竞品简报/, "后续蜂（instruction=派单 ask）不应误挂未命中技能");
-    assert.match(echoed.at(-1)!, /输出口径/, "全局技能仍然挂载");
+    for (const line of echoed) {
+      assert.match(line, /竞品简报/, "brief 命中词技能应到达每只蜂");
+      assert.match(line, /输出口径/, "全局技能应到达每只蜂");
+    }
 
-    // 对照组：指令不含任何命中词时，只挂全局技能（无 竞品简报）
+    // 对照组：brief 不含任何命中词时，只挂全局技能
     const kernel2 = new HiveKernel({ dataDir: tmpDataDir(), chart: mockChart, skillsDir });
     const t2 = kernel2.createTask({ title: "无关任务", brief: "整理会议纪要", budgetUsd: 5 });
     await kernel2.runTask(t2);
@@ -58,10 +57,12 @@ test("技能锻造厂 v0：指令命中 applies → 技能随任务包到达 wor
       .replayTaskEvents(t2)
       .filter((e) => e.kind === "bot.output")
       .map((e) => String((e.payload as { chunk?: string }).chunk ?? ""))
-      .filter((c) => c.startsWith("[skills]"))
-      .at(-1) ?? "";
-    assert.doesNotMatch(echoed2, /竞品简报/, "未命中词的技能不应挂载");
-    assert.match(echoed2, /输出口径/, "全局技能仍然挂载");
+      .filter((c) => c.startsWith("[skills]"));
+    assert.ok(echoed2.length >= 4, "对照任务也应全蜂回显");
+    for (const line of echoed2) {
+      assert.doesNotMatch(line, /竞品简报/, "brief 未命中的技能不应挂载");
+      assert.match(line, /输出口径/, "全局技能仍然挂载");
+    }
   } finally {
     delete process.env.HIVE_MOCK_ECHO_SKILLS;
   }

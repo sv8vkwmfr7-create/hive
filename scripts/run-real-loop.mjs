@@ -6,7 +6,7 @@
  * 凭据代理默认开启：worker 只见 127.0.0.1 代理地址，真 key 不出内核进程。
  * 运行：node --env-file=.env scripts/run-real-loop.mjs [HIVE_TEAM=real-team-ds]
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,7 +25,7 @@ const proxy = await startCredentialProxy({ adaptersDir, env: process.env });
 const workers = createAdapterResolver({ adaptersDir, proxyUrl: proxy.url, proxySecret: proxy.secret });
 // 共享大脑：设 HIVE_VAULT=<vault 目录> → 任务 PASS 后交付摘要自动落库，后续任务接活先查库
 const vaultDir = process.env.HIVE_VAULT ?? undefined;
-const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir });
+const kernel = new HiveKernel({ dataDir, chart, workers, vaultDir, skillsDir: existsSync(join(hiveRoot, "skills")) ? join(hiveRoot, "skills") : undefined });
 
 const taskId = kernel.createTask({
   title: "竞品简报",

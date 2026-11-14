@@ -19,6 +19,6 @@
     "input_per_mtok": 0,
     "output_per_mtok": 0
   },
-  "tier": "T1",
-  "notes": "智谱 BigModel：glm-4-flash 免费档，账单 $0 属预期；要更强换 glm-4-plus 并改 pricing。"
+  "tier": "T2",
+  "notes": "智谱 BigModel：glm-4-flash 免费档，账单 $0 属预期；要更强换 glm-4-plus 并改 pricing。；tier 修正为 T2（glm-4-flash 免费轻量档，质量档位如实标注）"
 }

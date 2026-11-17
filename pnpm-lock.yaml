@@ -27,6 +27,15 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/cloud:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/connectors:
     dependencies:
       '@hive/kernel':

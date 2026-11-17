@@ -1,0 +1,24 @@
+{
+  "name": "@hive/cloud",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "云端 VM 驱动层：每 agent 一台云电脑（SPI + 腾讯云/阿里云适配器 + agent 守护协议）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test --test-force-exit \"dist/__tests__/*.test.js\""
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
